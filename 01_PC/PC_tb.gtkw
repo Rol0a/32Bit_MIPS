@@ -1,0 +1,20 @@
+[*]
+[*] GTKWave save file - PC_tb
+[*] Uso: gtkwave PC_tb.vcd PC_tb.gtkw   (luego View -> Zoom Fit)
+[*]
+[dumpfile] "PC_tb.vcd"
+[timestart] 0
+[size] 1500 330
+[pos] 40 40
+[sst_width] 170
+[signals_width] 190
+[sst_expanded] 0
+[sst_vpaned_height] 120
+@28
+PC_tb.clk
+PC_tb.reset
+@24
+PC_tb.next_pc[31:0]
+PC_tb.current_pc[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
