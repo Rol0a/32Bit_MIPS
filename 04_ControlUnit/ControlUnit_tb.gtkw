@@ -1,0 +1,21 @@
+[*]
+[*] GTKWave save file - ControlUnit_tb
+[*] Uso: gtkwave ControlUnit_tb.vcd ControlUnit_tb.gtkw   (luego View -> Zoom Fit)
+[*]
+[dumpfile] "ControlUnit_tb.vcd"
+[timestart] 0
+[size] 1500 240
+[pos] 40 40
+[sst_width] 170
+[signals_width] 220
+[sst_expanded] 0
+[sst_vpaned_height] 120
+@28
+ControlUnit_tb.opcode[5:0]
+ControlUnit_tb.RegDst
+ControlUnit_tb.ALUSrc
+ControlUnit_tb.RegWrite
+ControlUnit_tb.Jump
+ControlUnit_tb.ALUOp[1:0]
+[pattern_trace] 1
+[pattern_trace] 0
