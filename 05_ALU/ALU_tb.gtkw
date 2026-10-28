@@ -1,0 +1,22 @@
+[*]
+[*] GTKWave save file - ALU_tb
+[*] Uso: gtkwave ALU_tb.vcd ALU_tb.gtkw   (luego View -> Zoom Fit)
+[*]
+[dumpfile] "ALU_tb.vcd"
+[timestart] 0
+[size] 1900 200
+[pos] 10 40
+[sst_width] 45
+[signals_width] 160
+[sst_expanded] 0
+[sst_vpaned_height] 120
+@28
+ALU_tb.alu_control[3:0]
+@424
+ALU_tb.src1[31:0]
+ALU_tb.src2[31:0]
+ALU_tb.result[31:0]
+@28
+ALU_tb.zero
+[pattern_trace] 1
+[pattern_trace] 0
