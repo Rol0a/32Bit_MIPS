@@ -2,6 +2,8 @@
 
 // Decodifica la operacion solicitada.
 // Los codigos funct siguen exactamente la tabla de la tarea.
+// ALUOp 01 (ADDI) y 11 (SUBI) son decision del grupo: la tabla de
+// la tarea solo define 00 (MOVI) y 10 (tipo R).
 module ALUControl (
     input  wire [1:0] ALUOp,
     input  wire [5:0] funct,
@@ -15,6 +17,10 @@ module ALUControl (
             // MOVI: el campo funct no afecta esta seleccion.
             2'b00: alu_control = 4'b0000;
 
+            // ADDI: suma el registro con el inmediato.
+            // Como en MOVI, funct se ignora: son bits del inmediato.
+            2'b01: alu_control = 4'b0010;
+
             // Instrucciones tipo R: decodificar funct.
             2'b10: begin
                 case (funct)
@@ -25,11 +31,17 @@ module ALUControl (
                     6'b100011: alu_control = 4'b0001; // MOV
 
                     // Combinacion no definida en la tabla.
+                    // La ALU devuelve 0 con este codigo.
                     default: alu_control = 4'b1111;
                 endcase
             end
 
-            // ALUOp no definido en la tabla.
+            // SUBI: resta el inmediato al registro.
+            // Como en MOVI, funct se ignora: son bits del inmediato.
+            2'b11: alu_control = 4'b0110;
+
+            // Los cuatro valores de ALUOp ya estan cubiertos: solo se
+            // llega aqui si ALUOp trae x o z. Evita latches y valores x.
             default: alu_control = 4'b1111;
 
         endcase
