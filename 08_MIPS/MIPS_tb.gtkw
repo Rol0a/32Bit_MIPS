@@ -1,0 +1,57 @@
+[*]
+[*] GTKWave save file - MIPS_tb
+[*] Uso: gtkwave MIPS_tb.vcd MIPS_tb.gtkw   (luego View -> Zoom Fit)
+[*]
+[dumpfile] "MIPS_tb.vcd"
+[timestart] 0
+[size] 1900 680
+[pos] 10 40
+[sst_width] 45
+[signals_width] 190
+[sst_expanded] 0
+[sst_vpaned_height] 120
+@200
+-Busqueda
+@28
+MIPS_tb.clk
+MIPS_tb.reset
+@24
+MIPS_tb.current_pc[31:0]
+@22
+MIPS_tb.instruction[31:0]
+@24
+MIPS_tb.uut.next_pc[31:0]
+@200
+-Control
+@28
+MIPS_tb.uut.RegDst
+MIPS_tb.uut.ALUSrc
+MIPS_tb.uut.RegWrite
+MIPS_tb.uut.Jump
+MIPS_tb.uut.ALUOp[1:0]
+MIPS_tb.uut.alu_control[3:0]
+@200
+-Ejecucion
+@424
+MIPS_tb.uut.read_data1[31:0]
+MIPS_tb.uut.src2[31:0]
+MIPS_tb.alu_result[31:0]
+@28
+MIPS_tb.uut.zero
+@24
+MIPS_tb.uut.write_reg[4:0]
+@200
+-Banco
+@424
+MIPS_tb.R1[31:0]
+MIPS_tb.R2[31:0]
+MIPS_tb.R3[31:0]
+MIPS_tb.R4[31:0]
+MIPS_tb.R5[31:0]
+MIPS_tb.R6[31:0]
+MIPS_tb.R7[31:0]
+MIPS_tb.R8[31:0]
+MIPS_tb.R9[31:0]
+MIPS_tb.R10[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

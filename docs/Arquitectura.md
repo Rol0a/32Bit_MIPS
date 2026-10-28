@@ -6,7 +6,8 @@
 > hecha así** y cómo encaja en la arquitectura completa de un procesador de 32 bits.
 >
 > **Estado descrito:** 28/10/2026, commit `512e942` más la revisión de `06` y `07` contra la plantilla de la
-> entrega 3. Todos los testbenches se volvieron a simular con Icarus Verilog 14.
+> entrega 3 y la integración del datapath en `08_MIPS`. Todos los testbenches se volvieron a simular con
+> Icarus Verilog 14.
 
 **Cómo leerlo:** las secciones 1 y 2 dan los fundamentos; la 3 define la ISA; la 4 presenta la arquitectura
 completa; la 5 recorre el código módulo por módulo; la 6 explica la temporización; la 7 sigue el programa ciclo a
@@ -22,7 +23,7 @@ la 12, sus límites.
 5. [Módulo por módulo](#s5)
    - [5.1 PC](#s5-1) · [5.2 IMEM](#s5-2) · [5.3 PC + IMEM](#s5-3) · [5.4 ControlUnit](#s5-4) ·
      [5.5 ALUControl](#s5-5) · [5.6 ALU](#s5-6) · [5.7 RegisterFile](#s5-7) ·
-     [5.8 Piezas pendientes del datapath](#s5-8)
+     [5.8 Datapath completo: MIPS](#s5-8)
 6. [Temporización: anatomía de un ciclo](#s6)
 7. [Ejecución completa del programa](#s7)
 8. [Metodología de verificación](#s8)
@@ -62,7 +63,7 @@ principales son:
 | ALU | [`05_ALU`](../05_ALU/) | Combinacional | ✅ | 22 pruebas, 0 errores |
 | ALUControl | [`06_ALUControl`](../06_ALUControl/) | Combinacional | ✅ | 16 pruebas, 0 errores |
 | RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 19 pruebas, 0 errores |
-| Extensión de signo, muxes, siguiente PC, módulo superior | — | Combinacional | ⏳ Fase 4 | — |
+| MIPS (datapath completo) | [`08_MIPS`](../08_MIPS/) | Integración: 6 instancias + `assign` | ✅ | Reset, 12 ciclos y 32 registros, 0 errores |
 
 ---
 
@@ -126,11 +127,13 @@ solo periodo de reloj, como una cadena combinacional entre dos flancos.
 | Etapa | Qué hace | Módulos | Estado |
 | :--- | :--- | :--- | :---: |
 | **IF**: búsqueda | Lee la instrucción apuntada por el PC | PC, IMEM | ✅ (`03_PC_IMEM`) |
-| **ID**: decodificación y lectura | Genera el control a partir del opcode y `funct`; lee `rs` y `rt`; extiende el inmediato | ControlUnit, ALUControl, RegisterFile, extensión de signo | ✅ salvo la extensión |
-| **EX**: ejecución | Calcula el resultado | Mux `ALUSrc`, ALU | ⏳ |
+| **ID**: decodificación y lectura | Genera el control a partir del opcode y `funct`; lee `rs` y `rt`; extiende el inmediato | ControlUnit, ALUControl, RegisterFile, extensión de signo | ✅ |
+| **EX**: ejecución | Calcula el resultado | Mux `ALUSrc`, ALU | ✅ |
 | **MEM**: memoria | Lee o escribe datos (`lw`/`sw`) | — | No existe en esta ISA |
-| **WB**: escritura | Guarda `result` en `write_reg` | Mux `RegDst`, RegisterFile | ✅ banco · ⏳ mux |
-| **Siguiente PC** | Elige `PC + 1` o la dirección del salto | Sumador, mux `Jump` | ⏳ |
+| **WB**: escritura | Guarda `result` en `write_reg` | Mux `RegDst`, RegisterFile | ✅ |
+| **Siguiente PC** | Elige `PC + 1` o la dirección del salto | Sumador, mux `Jump` | ✅ |
+
+Todas las etapas juntas forman el datapath de [`08_MIPS`](../08_MIPS/) (sección 5.8).
 
 ### 2.5 Monociclo, multiciclo y segmentado
 
@@ -340,25 +343,26 @@ se codifican a mano, como en la IMEM.
 
 ### 4.1 Diagrama completo
 
-Los bloques en verde existen y están verificados; los punteados en ámbar son de la Fase 4. Líneas continuas:
-datos; líneas punteadas: señales de control.
+Todos los bloques existen y están verificados: los seis módulos en verde, cada uno en su carpeta, y las piezas
+de interconexión en azul, como `assign` en [`08_MIPS/MIPS.v`](../08_MIPS/MIPS.v). Líneas continuas: datos;
+líneas punteadas: señales de control.
 
 ```mermaid
 flowchart LR
     classDef hecho fill:#dcfce7,stroke:#16a34a,color:#14532d
-    classDef pendiente fill:#fef3c7,stroke:#d97706,color:#78350f,stroke-dasharray:5 5
+    classDef assign fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
 
     PC["PC<br/>registro de 32 bits<br/>01_PC"]:::hecho
     IMEM["IMEM<br/>16 × 32 bits, ROM<br/>02_IMEM"]:::hecho
     CU["ControlUnit<br/>04_ControlUnit"]:::hecho
     AC["ALUControl<br/>06_ALUControl"]:::hecho
     RF["RegisterFile<br/>32 × 32 bits<br/>07_RegisterFile"]:::hecho
-    SE["Extensión de signo<br/>16 → 32"]:::pendiente
-    MRD{{"MUX RegDst"}}:::pendiente
-    MAS{{"MUX ALUSrc"}}:::pendiente
-    ALU["ALU<br/>05_ALU"]:::pendiente
-    INC["Sumador<br/>PC + 1"]:::pendiente
-    MJ{{"MUX Jump"}}:::pendiente
+    SE["Extensión de signo<br/>16 → 32"]:::assign
+    MRD{{"MUX RegDst"}}:::assign
+    MAS{{"MUX ALUSrc"}}:::assign
+    ALU["ALU<br/>05_ALU"]:::hecho
+    INC["Sumador<br/>PC + 1"]:::assign
+    MJ{{"MUX Jump"}}:::assign
 
     PC -- "current_pc [31:0]" --> IMEM
     PC -- "current_pc" --> INC
@@ -416,13 +420,13 @@ SIGUIENTE PC    next_pc = Jump ? {6'b0, address} : current_pc + 1
 | ControlUnit | Decodificador principal: opcode → señales | Combinacional | 6 → 1+1+1+1+2 | ✅ |
 | ALUControl | Decodificador secundario: `ALUOp` + `funct` → operación | Combinacional | 2+6 → 4 | ✅ |
 | RegisterFile | 32 registros, 2 lecturas y 1 escritura | Lectura comb. / escritura sec. | 5 → 32 | ✅ |
-| ALU | Suma, resta, multiplicación, división y paso de operandos | Combinacional | 32+32+4 → 32+1 | ⏳ |
-| Extensión de signo | `imm[15:0]` → 32 bits con signo | Combinacional | 16 → 32 | ⏳ |
-| Mux `RegDst` | Destino: `rd` o `rt` | Combinacional | 5 | ⏳ |
-| Mux `ALUSrc` | `src2`: `read_data2` o inmediato | Combinacional | 32 | ⏳ |
-| Sumador `PC + 1` | Siguiente dirección secuencial | Combinacional | 32 | ⏳ (hoy está en el testbench de `03`) |
-| Mux `Jump` | Siguiente PC: `PC + 1` o `address` | Combinacional | 32 | ⏳ |
-| Módulo superior | Instancia y conecta todo | Estructural | — | ⏳ |
+| ALU | Suma, resta, multiplicación, división y paso de operandos | Combinacional | 32+32+4 → 32+1 | ✅ |
+| Extensión de signo | `imm[15:0]` → 32 bits con signo | Combinacional (`assign` en `MIPS.v`) | 16 → 32 | ✅ |
+| Mux `RegDst` | Destino: `rd` o `rt` | Combinacional (`assign` en `MIPS.v`) | 5 | ✅ |
+| Mux `ALUSrc` | `src2`: `read_data2` o inmediato | Combinacional (`assign` en `MIPS.v`) | 32 | ✅ |
+| Sumador `PC + 1` | Siguiente dirección secuencial | Combinacional (`assign` en `MIPS.v`) | 32 | ✅ |
+| Mux `Jump` | Siguiente PC: `PC + 1` o `address` | Combinacional (`assign` en `MIPS.v`) | 32 | ✅ |
+| Módulo superior `MIPS` | Instancia y conecta todo | Estructural | — | ✅ (`08_MIPS`) |
 
 ### 4.3 Señales de control
 
@@ -620,7 +624,7 @@ IMEM uut_imem (.addr(current_pc), .instruction(instruction));                   
 ```
 
 - **No hay módulo nuevo:** la plantilla pide calcular la dirección siguiente en el testbench. El sumador y el mux
-  del salto se convertirán en hardware en la Fase 4.
+  del salto son `assign` del módulo superior en `08_MIPS` (sección 5.8).
 - Se compilan `../01_PC/PC.v` y `../02_IMEM/IMEM.v` desde su carpeta original. **No se copian**, para que exista
   una sola fuente de verdad.
 
@@ -638,7 +642,7 @@ IMEM uut_imem (.addr(current_pc), .instruction(instruction));                   
 PC como la salida combinacional de la IMEM están estables, sin carreras con el `<=`.
 
 **El salto no se ejecuta:** aquí `next_pc` siempre vale `PC + 1`, así que `j 9` solo se lee y se decodifica.
-Elegir con `Jump` es trabajo de la Fase 4.
+Elegir con `Jump` le toca al datapath de `08_MIPS`, donde `j 9` sí deja el PC fijo en 9.
 
 **Verificación:** compara el PC y la instrucción de cada ciclo con valores escritos a mano. Se comprobó además
 que con `+4` el testbench marca `ERROR` desde el ciclo 1. **Resultado: 10 ciclos, 0 errores.**
@@ -948,23 +952,33 @@ Con cualquiera de los dos primeros bastaría; juntos son redundantes, pero no es
 
 <a id="s5-8"></a>
 
-### 5.8 Piezas pendientes del datapath (Fase 4)
+### 5.8 Datapath completo: MIPS
 
-Son pequeñas, pero sin ellas los módulos no forman un procesador.
+**Papel:** el módulo superior [`08_MIPS/MIPS.v`](../08_MIPS/MIPS.v) instancia los seis módulos (`pc_reg`, `imem`,
+`cu`, `aluc`, `rf`, `alu`) y los conecta. El PC y el banco comparten `clk` y `reset`. Las piezas que no tienen
+módulo propio son pequeñas, pero sin ellas los módulos no forman un procesador; están escritas **solo con
+`assign`**: `MIPS.v` no tiene ningún `always`.
 
-| Pieza | Expresión | Ancho | Por qué así |
+| Pieza | `assign` en `MIPS.v` | Ancho | Por qué así |
 | :--- | :--- | :---: | :--- |
-| Extensión de signo | `imm_ext = {{16{instr[15]}}, instr[15:0]}` | 16 → 32 | D7: coherente con una ALU con signo. `movi $2, -3` exige `0xFFFFFFFD`. En MIPS real, `andi`/`ori` extienden con ceros, pero aquí no hay operaciones lógicas |
-| Mux `RegDst` | `write_reg = RegDst ? instr[15:11] : instr[20:16]` | 5 | El destino está en `rd` (R) o en `rt` (I) |
+| Campos | `opcode`, `rs`, `rt`, `rd`, `funct`, `immediate` y `address` cortados de `instruction` | — | Cada módulo o mux toma el que le corresponde; `shamt` no se usa |
+| Extensión de signo | `imm_ext = {{16{immediate[15]}}, immediate}` | 16 → 32 | D7: coherente con una ALU con signo. `movi $2, -3` exige `0xFFFFFFFD`. En MIPS real, `andi`/`ori` extienden con ceros, pero aquí no hay operaciones lógicas |
+| Mux `RegDst` | `write_reg = RegDst ? rd : rt` | 5 | El destino está en `rd` (R) o en `rt` (I) |
 | Mux `ALUSrc` | `src2 = ALUSrc ? imm_ext : read_data2` | 32 | El segundo operando es un registro (R) o el inmediato (I) |
 | Sumador | `pc_plus1 = current_pc + 32'd1` | 32 | Direccionamiento por palabra (D6) |
-| Mux `Jump` | `next_pc = Jump ? {6'b0, instr[25:0]} : pc_plus1` | 32 | D8: dirección de palabra directa, extendida con ceros. La alternativa «pseudodirecta» de MIPS, `{pc_plus1[31:26], address}`, es equivalente mientras el programa quepa en 2²⁶ palabras |
-| Write-back | `write_data = result` | 32 | Sin memoria de datos no hace falta el mux `MemtoReg` |
+| Mux `Jump` | `next_pc = Jump ? {6'b000000, address} : pc_plus1` | 32 | D8: dirección de palabra directa, extendida con ceros. La alternativa «pseudodirecta» de MIPS, `{pc_plus1[31:26], address}`, es equivalente mientras el programa quepa en 2²⁶ palabras |
+| Write-back | `write_data = alu_result` | 32 | Sin memoria de datos no hace falta el mux `MemtoReg` |
 
-**Módulo superior** (por ejemplo `MIPS.v`, nombre por decidir): instancia los seis módulos con el mismo `clk` y
-`reset` para el PC y el banco, y contiene las cinco expresiones anteriores como `assign`. Su testbench puede
-reutilizar el formato de `03_PC_IMEM` y, al final, comprobar el estado del banco (sección 7) con
-`uut.<banco>.registers[i]`.
+**Interfaz:** entradas `clk` y `reset`; salidas `current_pc`, `instruction` y `alu_result` para observar el
+procesador. `zero` queda en un `wire` interno sin uso, preparado para un futuro `beq`.
+
+**Verificación:** `MIPS_tb` sigue el formato de `03_PC_IMEM`. En el flanco ↓ de cada ciclo compara PC,
+instrucción, las cinco señales de control, `alu_control`, `src1`, `src2`, `result`, `zero`, `write_reg` y
+`next_pc` con la traza de la sección 7; 1 ns después del flanco ↑ comprueba el registro escrito con
+`uut.rf.registers[i]`. Ejecuta 12 ciclos (los 10 del programa y dos más de `j 9`) y al final compara los 32
+registros. Resultado: reset, 12 ciclos y 32 registros sin errores, y cinco mutaciones de conexión detectadas
+(extensión con ceros, `RegDst` o `ALUSrc` invertidos, sin mux `Jump`, banco sin reset). Detalle en
+[`08_MIPS/README.md`](../08_MIPS/README.md).
 
 ---
 
@@ -1016,8 +1030,13 @@ caso 10 del testbench del banco lo comprueba: antes del flanco se lee `10` y des
 
 - Hasta el primer `posedge clk` con `reset = 1`, el PC y los registros valen `x`. Los testbenches lo muestran a
   propósito.
-- Durante ese intervalo la IMEM lee `memory[x] = x`, la ControlUnit cae en `default` y pone `RegWrite = 0`. Además,
-  el reset del banco tiene prioridad. **No hay escrituras espurias.**
+- Durante ese intervalo la IMEM lee `memory[x] = x`. **`RegWrite` también vale `x`**, no `0`: un `always @(*)`
+  solo se ejecuta cuando cambia una entrada, y el `opcode` vale `x` desde el instante 0 hasta el primer flanco,
+  así que los `always` de ControlUnit, ALUControl y ALU aún no se han ejecutado y sus salidas conservan el `x`
+  inicial (se ve en rojo en la captura de `08_MIPS`). Lo que protege el banco es que **su reset tiene prioridad
+  sobre `RegWrite`**: en ese primer flanco `reset = 1`. **No hay escrituras espurias**; `MIPS_tb` lo comprueba
+  a los 6 ns (PC y los 32 registros en 0). La ControlUnit sí cae en `default` cuando el `opcode` *cambia* a `x`,
+  por ejemplo si el PC llega a una palabra vacía de la IMEM.
 - Hay que soltar el reset después del primer flanco y antes del siguiente, para que la instrucción 0 se ejecute un
   ciclo completo.
 
@@ -1041,6 +1060,7 @@ no se usa en procesadores reales y por qué existen los diseños multiciclo y se
 | :--- | :--- | :--- |
 | Cambiar las entradas en el **flanco ↓** | `PC_tb`, `RegisterFile_tb` | Lejos del flanco activo: no hay carrera entre el testbench y el DUT |
 | Observar **1 ns después del flanco ↑** o en el flanco ↓ | Todos los secuenciales | El `<=` ya se asentó. Imprimir en el mismo flanco mostraría el valor anterior |
+| Señales del ciclo en el flanco ↓, escritura 1 ns después del flanco ↑ | `MIPS_tb` | A mitad de ciclo la lógica combinacional ya se asentó; el registro destino solo cambia en el flanco que termina la instrucción |
 | Esperar `#10` sin reloj | `IMEM_tb`, `ControlUnit_tb`, `ALUControl_tb` | Son combinacionales: basta con que la salida se asiente |
 
 ---
@@ -1049,9 +1069,9 @@ no se usa en procesadores reales y por qué existen los diseños multiciclo y se
 
 ## 7. Ejecución completa del programa
 
-Esto es lo que hará el datapath de la Fase 4 con el programa de la IMEM. Se calculó a mano y se **comprobó en
-simulación** con los seis módulos reales (ALU incluida) y las piezas de la sección 5.8,
-montados en un banco de pruebas provisional que no está en el repositorio.
+Esto es lo que hace el datapath ([`08_MIPS`](../08_MIPS/)) con el programa de la IMEM. Se calculó a mano y se
+**comprueba en simulación**: estos son los valores esperados de `MIPS_tb`, que los compara ciclo a ciclo y
+registro a registro (0 errores).
 
 Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro destino se escribe en el flanco que
 **termina** el ciclo.
@@ -1100,9 +1120,9 @@ Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro 
 | **Autocomprobación** | Contadores `pruebas`/`errores` y una línea de resumen | No hace falta leer cientos de líneas para saber si pasó |
 | **Esperado independiente del DUT** | Valores escritos a mano en el testbench, nunca leídos del módulo | Si el esperado saliera del propio módulo, un error se compararía consigo mismo |
 | **Comparación de cuatro estados** | `!==` para contar errores y `===` para el `OK` | Con `!=`, una `x` daría «desconocido» y no contaría como error. Con `!==` sí cuenta, y una `x` esperada solo coincide con una `x` real |
-| **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `ciclo`, `comprobar`, `revisar_reset` | Cada caso es una línea legible y el formato de salida es uniforme |
+| **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `ciclo`, `comprobar`, `revisar_reset`, `revisar_banco` | Cada caso es una línea legible y el formato de salida es uniforme |
 | **Casos de borde** | Opcode `x`, direcciones fuera de rango, `0xFFFFFFFF`, `$0`, `$31`, reset con prioridad, cambios entre flancos | Los errores viven en los bordes |
-| **Pruebas de mutación** | Copias defectuosas del módulo (sin el valor por defecto de `Jump`, `ALUOp` cambiado, PC `+4`, `addr[3:0]`) | Demuestran que el testbench **detecta** los errores que pretende prevenir |
+| **Pruebas de mutación** | Copias defectuosas del módulo (sin el valor por defecto de `Jump`, `ALUOp` cambiado, PC `+4`, `addr[3:0]`; en el datapath, extensión con ceros, muxes invertidos, sin mux `Jump`, banco sin reset) | Demuestran que el testbench **detecta** los errores que pretende prevenir |
 | **Ondas** | `$dumpfile`/`$dumpvars(0, tb)` y vistas guardadas `.gtkw` | La plantilla pide capturas; el `.gtkw` fija las señales y sus formatos |
 
 ### 8.2 Resumen de resultados (resimulados)
@@ -1116,6 +1136,7 @@ Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro 
 | `ALUControl_tb` | `ALUOp`/`funct` cada 10 ns | 16 | 160 ns | ✅ |
 | `RegisterFile_tb` | Reloj; entradas en flanco ↓; acceso jerárquico | 19 | 107 ns | ✅ |
 | `ALU_tb` | Control y operandos cada 10 ns | 22 | 220 ns | ✅ |
+| `MIPS_tb` | Reloj; el procesador ejecuta el programa solo; acceso jerárquico | Reset + 12 ciclos + 32 registros | 130 ns | ✅ |
 
 ### 8.3 Comandos
 
@@ -1134,6 +1155,13 @@ iverilog -o PC_IMEM_tb.vvp ../01_PC/PC.v ../02_IMEM/IMEM.v PC_IMEM_tb.v
 vvp PC_IMEM_tb.vvp
 ```
 
+Procesador completo (desde `08_MIPS/`):
+
+```powershell
+iverilog -Wall -o MIPS_tb.vvp ../01_PC/PC.v ../02_IMEM/IMEM.v ../04_ControlUnit/ControlUnit.v ../05_ALU/ALU.v ../06_ALUControl/ALUControl.v ../07_RegisterFile/RegisterFile.v MIPS.v MIPS_tb.v
+vvp MIPS_tb.vvp
+```
+
 ---
 
 <a id="s9"></a>
@@ -1149,13 +1177,14 @@ vvp PC_IMEM_tb.vvp
 | `default` en cada `case` | ControlUnit, ALUControl | Cubre las combinaciones no listadas **y** las entradas con `x`/`z` |
 | `always @(posedge clk)` + `<=` | PC, RegisterFile | Elementos con estado sincronizados con un solo flanco (sección 6.2) |
 | `assign` para lecturas | IMEM, RegisterFile | Lectura combinacional, necesaria en un monociclo |
+| Solo `assign` en el módulo superior | MIPS | Campos, extensión de signo, muxes, `PC + 1` y write-back son combinacionales: cada `assign` es una ecuación del datapath |
 | `reg [31:0] mem [0:N]` | IMEM, RegisterFile | Arreglo de palabras: la forma estándar de modelar memorias |
 | Literales con `_` | IMEM, testbenches | `32'b000000_00001_…` muestra los campos de la instrucción a simple vista |
 | `$signed()` | Testbenches; ALU (D4) | Interpreta los bits como complemento a 2 al imprimir o dividir. Cuidado con mezclar operandos sin signo (sección 5.6) |
 | `===` / `!==` | Testbenches | Comparación exacta de cuatro estados (0, 1, `x`, `z`) |
 | Wires de campos en el testbench | `IMEM_tb`, `PC_IMEM_tb` | `wire [5:0] opcode = instruction[31:26]` hace visible cada campo en GTKWave |
-| Referencia jerárquica | `RegisterFile_tb` | `uut.registers[i]` inspecciona el estado interno sin añadir puertos |
-| `$timeformat(-9, 0, " ns", 6)` | `PC_tb`, `PC_IMEM_tb`, `RegisterFile_tb` | `%t` en ns enteros: la consola se lee igual que el eje de GTKWave |
+| Referencia jerárquica | `RegisterFile_tb`, `MIPS_tb` | `uut.registers[i]`, `uut.rf.registers[i]` y `uut.RegDst` inspeccionan el estado y las señales internas sin añadir puertos |
+| `$timeformat(-9, 0, " ns", 6)` | `PC_tb`, `PC_IMEM_tb`, `RegisterFile_tb`, `MIPS_tb` | `%t` en ns enteros: la consola se lee igual que el eje de GTKWave |
 
 ---
 
@@ -1194,11 +1223,11 @@ vvp PC_IMEM_tb.vvp
 | 1 · PC e IMEM | PC, IMEM, PC + IMEM | ✅ | ✅ | `consola.png` y `gtkwave.png` en las tres carpetas | Por completar |
 | 2 · Control y ALU | ControlUnit, ALU | ✅ | ✅ | `consola.png` y `gtkwave.png` en las dos carpetas | Por completar |
 | 3 · ALUControl y banco | ALUControl, RegisterFile | ✅ | ✅ | `gtkwave.png` en las dos; `consola.png`: repetir la de ALUControl, falta la del banco | Por completar |
-| Fase 4 · Datapath | Módulo superior + piezas de la sección 5.8 | ⏳ | ⏳ | — | — |
+| Fase 4 · Datapath | MIPS (`08_MIPS`) | ✅ | ✅ | `gtkwave.png`; falta `consola.png` | — |
 
-**Siguiente paso natural:** la integración del datapath (sección 5.8). Ya se comprobó que los seis módulos
-compilan juntos sin advertencias de `iverilog -Wall` y que, conectados con las piezas de la sección 5.8 en una
-prueba provisional, reproducen la traza y el estado final de la sección 7.
+**Datapath integrado** en [`08_MIPS`](../08_MIPS/) (sección 5.8): compila sin advertencias de `iverilog -Wall`,
+reproduce la traza y el estado final de la sección 7 y detecta las cinco mutaciones de conexión probadas.
+**Siguiente paso:** las capturas de consola pendientes y las plantillas `.docx`.
 
 ### 11.2 Inconsistencias detectadas
 
@@ -1222,12 +1251,18 @@ revisión del 28/10/2026):
 
 ### 11.3 Riesgo técnico para la integración
 
+Los tres riesgos previstos antes de integrar están cubiertos: `MIPS_tb` falla con cada uno (mutaciones 1, 2 y 5
+de [`08_MIPS`](../08_MIPS/README.md)).
+
 - **Extensión de signo:** si se extiende con ceros, `movi $2, -3` carga `65533` y `sub`, `mul` y `div` del programa
   dan otros valores. El estado final de la sección 7 lo detecta (`$2 = −3`, `$5 = −21`).
 - **Orden de los campos en los muxes:** `RegDst = 1` elige `rd = instr[15:11]` y `0` elige `rt = instr[20:16]`;
   invertirlos escribe en el registro equivocado (por ejemplo, `add $3, $1, $2` escribiría `$2`).
 - **Reset:** el PC y el banco deben recibir el mismo `reset` y soltarlo después del primer flanco, como en
   `PC_IMEM_tb`; si no, la instrucción 0 no se ejecuta un ciclo completo.
+- **Comprobar solo el estado final no basta** (hallado al integrar): sin el mux `Jump`, el PC sale del programa,
+  lee palabras vacías y la ControlUnit deja de escribir, así que el banco termina igual. Solo la comparación
+  ciclo a ciclo de `MIPS_tb` lo detecta (mutación 4).
 
 ---
 

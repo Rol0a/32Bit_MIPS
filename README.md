@@ -15,22 +15,22 @@
   <img src="https://img.shields.io/badge/HDL-Verilog-6366F1?style=for-the-badge&labelColor=18181B" alt="HDL: Verilog">
   <img src="https://img.shields.io/badge/Arquitectura-32_bits-0EA5E9?style=for-the-badge&labelColor=18181B" alt="Arquitectura: 32 bits">
   <img src="https://img.shields.io/badge/Simulador-Icarus_Verilog_14-8B5CF6?style=for-the-badge&labelColor=18181B" alt="Simulador: Icarus Verilog 14">
-  <img src="https://img.shields.io/badge/Testbenches-7_de_7_OK-10B981?style=for-the-badge&labelColor=18181B" alt="Testbenches: 7 de 7 OK">
+  <img src="https://img.shields.io/badge/Testbenches-8_de_8_OK-10B981?style=for-the-badge&labelColor=18181B" alt="Testbenches: 8 de 8 OK">
 </p>
 
 <p align="center">
   <code>PC</code> &nbsp;·&nbsp; <code>IMEM</code> &nbsp;·&nbsp;
   <code>ControlUnit</code> &nbsp;·&nbsp; <code>ALU</code> &nbsp;·&nbsp;
-  <code>ALUControl</code> &nbsp;·&nbsp; <code>RegisterFile</code>
+  <code>ALUControl</code> &nbsp;·&nbsp; <code>RegisterFile</code> &nbsp;·&nbsp; <code>MIPS</code>
 </p>
 
 ---
 
-Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y Banco de Registros**. Cada módulo se verifica con su propio testbench antes de integrarlo en el datapath de las siguientes prácticas.
+Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y Banco de Registros**. Cada módulo se verifica con su propio testbench y después todos se integran en el datapath completo (`08_MIPS`).
 
-> **Estado actual:** los seis módulos y la integración PC + IMEM están implementados y verificados: 7 testbenches, 0 errores. Una prueba provisional que conecta los seis módulos ejecuta el programa de la IMEM y deja en el banco los valores calculados a mano ([Arquitectura §7](docs/Arquitectura.md#s7)).
+> **Estado actual:** los seis módulos, la integración PC + IMEM y el procesador completo están implementados y verificados: 8 testbenches, 0 errores. `08_MIPS` ejecuta el programa de la IMEM ciclo a ciclo y deja en el banco los valores calculados a mano ([Arquitectura §7](docs/Arquitectura.md#s7)).
 >
-> **Próximo paso:** completar las capturas de consola pendientes y las plantillas `.docx`, y empezar la integración del datapath ([Fase 4](#fase-4--integración-del-datapath-siguiente)).
+> **Próximo paso:** completar las capturas de consola pendientes y las plantillas `.docx`.
 
 **Navegación**  
 [Entregas](#entregas-y-alcance) · [Repositorio](#estructura-del-repositorio) · [Simulación](#herramientas-y-comandos) · [ISA](#conjunto-de-instrucciones-isa) · [Hoja de ruta](#hoja-de-ruta) · [Decisiones](#decisiones-de-diseño) · [Notas técnicas](#notas-técnicas)
@@ -64,6 +64,7 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 | [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · capturas listas |
 | [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 | ✅ Verificado · repetir `consola.png` |
 | [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | ✅ Verificado · falta `consola.png` |
+| [`08_MIPS/`](08_MIPS/) | Fase 4 · Procesador completo (datapath) | ✅ Verificado · falta `consola.png` |
 
 <details>
 <summary><strong>Ver árbol completo de archivos</strong></summary>
@@ -100,10 +101,14 @@ P1/
 │   ├── README.md
 │   ├── ALUControl.v
 │   └── ALUControl_tb.v
-└── 07_RegisterFile/
+├── 07_RegisterFile/
+│   ├── README.md
+│   ├── RegisterFile.v
+│   └── RegisterFile_tb.v
+└── 08_MIPS/                        # Reutiliza los seis módulos
     ├── README.md
-    ├── RegisterFile.v
-    └── RegisterFile_tb.v
+    ├── MIPS.v                      # Módulo superior: instancias + assign
+    └── MIPS_tb.v
 ```
 
 </details>
@@ -142,6 +147,16 @@ Los módulos compartidos se compilan desde su carpeta original. Ejecutar desde `
 ```powershell
 iverilog -o PC_IMEM_tb.vvp ../01_PC/PC.v ../02_IMEM/IMEM.v PC_IMEM_tb.v
 vvp PC_IMEM_tb.vvp
+```
+
+### Simular el procesador completo
+
+Ejecutar desde `08_MIPS/`:
+
+```powershell
+iverilog -Wall -o MIPS_tb.vvp ../01_PC/PC.v ../02_IMEM/IMEM.v ../04_ControlUnit/ControlUnit.v ../05_ALU/ALU.v ../06_ALUControl/ALUControl.v ../07_RegisterFile/RegisterFile.v MIPS.v MIPS_tb.v
+vvp MIPS_tb.vvp
+gtkwave MIPS_tb.vcd MIPS_tb.gtkw
 ```
 
 ## Conjunto de instrucciones (ISA)
@@ -202,22 +217,24 @@ La tabla de ALUControl fija esta codificación y la ALU la usa tal cual.
 ### Pendiente para entregar
 
 - [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir `02_IMEM` y `06_ALUControl` (solo se ve
-  `vvp`; la de `06` además es de la versión anterior del testbench) y tomar la de `07_RegisterFile`. La de
-  `04_ControlUnit` empieza con un intento fallido (`vvp ControlUnit.vvp`); conviene repetirla o recortarla.
+  `vvp`; la de `06` además es de la versión anterior del testbench) y tomar las de `07_RegisterFile` y
+  `08_MIPS`. La de `04_ControlUnit` empieza con un intento fallido (`vvp ControlUnit.vvp`); conviene repetirla
+  o recortarla.
 - [ ] Llenar las tres plantillas `.docx` con el código, las capturas y las tablas de casos de cada README.
   En la entrega 3, explicar las filas 7, 10 y 11 de la tabla de ALUControl (ver
   [Diferencias con las plantillas](#diferencias-con-las-plantillas)).
 
-### Fase 4 · Integración del datapath (siguiente)
+### Fase 4 · Integración del datapath
 
-Ya comprobado: los seis módulos compilan juntos sin advertencias de `iverilog -Wall`. Una prueba provisional,
-que no está en el repositorio, los conecta con las piezas de [Arquitectura §5.8](docs/Arquitectura.md#s5-8),
-ejecuta el programa de la IMEM y deja en el banco exactamente el estado de [Arquitectura §7](docs/Arquitectura.md#s7).
+Los seis módulos se conectan en [`08_MIPS`](08_MIPS/) sin modificarlos. Detalle en
+[Arquitectura §5.8](docs/Arquitectura.md#s5-8).
 
-- [ ] Módulo superior (carpeta y nombre por decidir): instancias de los seis módulos con el mismo `clk` y
-  `reset`, más extensión de signo, mux `RegDst`, mux `ALUSrc`, `PC + 1`, mux `Jump` y write-back (`result`).
-- [ ] Testbench del datapath: una línea por ciclo y comprobación del estado final del banco con
-  `uut.<banco>.registers[i]`.
+- [x] **`08_MIPS/MIPS.v`** — Módulo superior: seis instancias con el mismo `clk` y `reset` para el PC y el banco;
+  campos, extensión de signo, mux `RegDst`, mux `ALUSrc`, `PC + 1`, mux `Jump` y write-back, todo con `assign`.
+  Compila sin advertencias con `iverilog -Wall`.
+- [x] **`08_MIPS/MIPS_tb.v`** — Reset, 12 ciclos comparados señal por señal con
+  [Arquitectura §7](docs/Arquitectura.md#s7), registro escrito tras cada flanco y estado final de los 32
+  registros. Todo OK; cinco mutaciones de conexión detectadas.
 
 ### Flujo de trabajo por módulo
 
@@ -264,7 +281,8 @@ Todas están cerradas e implementadas. La lista completa, con alternativas y jus
 | **Lógica combinacional** | En `always @(*)`, asignar **todas** las salidas antes del `case` para evitar latches y valores `x`. |
 | **Valores con signo** | Los vectores sin declaración `signed` son sin signo. Un resultado de 32 bits de `5 - 10` se imprime como `4294967291` con `%d`; usar `$signed()` para interpretarlo con signo. |
 | **Multiplicación** | El producto se trunca a 32 bits: `65536 × 65536 = 0`, con `zero = 1`. |
-| **Banco de Registros** | El testbench puede acceder al arreglo interno mediante una referencia jerárquica: `uut.registers[1]`. |
+| **Banco de Registros** | El testbench puede acceder al arreglo interno mediante una referencia jerárquica: `uut.registers[1]` (en el datapath, `uut.rf.registers[1]`). |
+| **Arranque del datapath** | Antes del primer flanco las salidas de los `always @(*)` valen `x` (aún no se han ejecutado), también `RegWrite`. No hay escrituras espurias porque el reset del banco tiene prioridad. |
 
 ---
 
