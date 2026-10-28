@@ -1,0 +1,29 @@
+[*]
+[*] GTKWave save file - IMEM_tb
+[*] Uso: gtkwave IMEM_tb.vcd IMEM_tb.gtkw   (luego View -> Zoom Fit)
+[*]
+[dumpfile] "IMEM_tb.vcd"
+[timestart] 0
+[size] 1500 310
+[pos] 40 40
+[sst_width] 170
+[signals_width] 200
+[sst_expanded] 0
+[sst_vpaned_height] 120
+@24
+IMEM_tb.addr[31:0]
+@22
+IMEM_tb.instruction[31:0]
+@28
+IMEM_tb.opcode[5:0]
+IMEM_tb.rs[4:0]
+IMEM_tb.rt[4:0]
+IMEM_tb.rd[4:0]
+IMEM_tb.shamt[4:0]
+IMEM_tb.funct[5:0]
+@424
+IMEM_tb.immediate[15:0]
+@24
+IMEM_tb.address[25:0]
+[pattern_trace] 1
+[pattern_trace] 0
