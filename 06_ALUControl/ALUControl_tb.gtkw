@@ -4,10 +4,10 @@
 [*]
 [dumpfile] "ALUControl_tb.vcd"
 [timestart] 0
-[size] 1500 330
-[pos] 40 40
-[sst_width] 170
-[signals_width] 220
+[size] 1500 185
+[pos] 10 40
+[sst_width] 45
+[signals_width] 200
 [sst_expanded] 0
 [sst_vpaned_height] 120
 @28

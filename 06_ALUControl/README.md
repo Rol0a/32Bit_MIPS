@@ -1,6 +1,7 @@
 # 06 — Control de la ALU (ALUControl)
 
-**Entrega 3 · Ejercicios 1–2** · Estado: ✅ implementado y verificado (15/15 pruebas OK) · capturas pendientes
+**Entrega 3 · Ejercicios 1–2** · Estado: ✅ implementado y verificado (16/16 pruebas OK) · `gtkwave.png` lista,
+`consola.png` por repetir (debe verse también el comando `iverilog`)
 
 ## Objetivo
 Traducir `ALUOp` (de la Unidad de Control) y el campo `funct` (de las instrucciones R) en el código de 4 bits
@@ -9,7 +10,7 @@ que le indica a la ALU qué operación hacer. Es lógica combinacional pura: no 
 | Archivo | Contenido |
 |---|---|
 | `ALUControl.v` | Módulo `ALUControl` |
-| `ALUControl_tb.v` | Testbench `ALUControl_tb`, con 15 pruebas automáticas |
+| `ALUControl_tb.v` | Testbench `ALUControl_tb`, con 16 pruebas automáticas en el orden de la plantilla |
 | `ALUControl_tb.gtkw` | Vista guardada de GTKWave: las 4 señales en binario |
 
 ## Puertos
@@ -39,17 +40,24 @@ que le indica a la ALU qué operación hacer. Es lógica combinacional pura: no 
 1. **Códigos `funct` del enunciado** (decisión 1 del README principal). Se usan los de la tabla de
    ALUControl, **no** los de `docs/Tabla Opcode y Funct.xlsx`, que se contradecían con ella (`100010` era SUB
    en una y DIV en la otra). El programa de la IMEM se codifica con estos mismos valores. Los códigos de la
-   hoja ya no se reconocen: el `funct` de MULT en la hoja (`011000`) da `1111` (prueba 15).
+   hoja ya no se reconocen: el `funct` de MULT en la hoja (`011000`) da `1111` (prueba 13).
 2. **`ALUOp = 01` → ADDI y `ALUOp = 11` → SUBI** (decisión 2). El enunciado solo define `00` (MOVI) y `10`
    (tipo R). Si ADDI y SUBI usaran `00`, la ALU ejecutaría MOVI y el resultado sería solo el inmediato. Con
    esta extensión del grupo, los cuatro valores de `ALUOp` quedan definidos.
+   > **Ojo con la plantilla.** Su caso 7 dice que ADDI «llega con `ALUOp = 00`» y sus casos 10 y 11 tratan
+   > `01` y `11` como «no definidos». En nuestro diseño no es así: la prueba 7 muestra que ADDI con `00`
+   > daría `0000` (MOVI, la ALU devolvería solo el inmediato), y las pruebas 10 y 11 muestran que `01` y
+   > `11` dan suma y resta. Al llenar la tabla del `.docx`, explicarlo en esas tres filas.
 3. **`1111` = no definido** (decisión 4). No corresponde a ninguna operación de la ALU, así que una
    combinación inválida se distingue a simple vista en la simulación. La ALU devuelve `0` con cualquier
    código no contemplado.
+4. **Valor por defecto antes del `case`**, como pide la plantilla y como hacen la Unidad de Control y la ALU.
+   `alu_control = 1111` se asigna primero; cada rama solo lo cambia si la combinación está definida.
 
 ## Cómo funciona el código
 ```verilog
 always @(*) begin
+    alu_control = 4'b1111;                                // por defecto: no definido
     case (ALUOp)
         2'b00: alu_control = 4'b0000;                     // MOVI
         2'b01: alu_control = 4'b0010;                     // ADDI: suma
@@ -57,11 +65,11 @@ always @(*) begin
             case (funct)
                 6'b100000: alu_control = 4'b0010;         // ADD
                 ...
-                default:   alu_control = 4'b1111;         // funct no definido
+                default: ;                                // funct no definido: queda 1111
             endcase
         end
         2'b11: alu_control = 4'b0110;                     // SUBI: resta
-        default: alu_control = 4'b1111;                   // solo si ALUOp trae x o z
+        default: ;                                        // solo si ALUOp trae x o z: queda 1111
     endcase
 end
 ```
@@ -73,9 +81,9 @@ end
   `funct = 001010`.
 - **ADDI y SUBI reutilizan los códigos de ADD y SUB:** la ALU no distingue si `src2` viene de un registro o
   del inmediato; eso lo decide el mux `ALUSrc`. Por eso bastan `0010` y `0110`.
-- Todos los caminos asignan `alu_control` (los dos `case` tienen `default`), así que no se infieren latches
-  ni aparecen valores `x`. Con los cuatro valores de `ALUOp` cubiertos, el `default` externo solo se alcanza
-  si `ALUOp` trae `x` o `z`; se conserva como protección.
+- **Sin latches:** `alu_control` recibe `1111` antes del `case`, así que todos los caminos le dan un valor y
+  no aparecen latches ni valores `x`. Con los cuatro valores de `ALUOp` cubiertos, el `default` externo solo
+  se alcanza si `ALUOp` trae `x` o `z` (prueba 16); se conserva como protección.
 
 ## Interacción con los otros módulos
 
@@ -135,63 +143,74 @@ El recorrido completo de una instrucción por el datapath (`add $3, $1, $2`) est
 [README del banco de registros](../07_RegisterFile/README.md).
 
 ## Testbench (`ALUControl_tb.v`)
-- Tarea `probar(op, funcion, esperado, caso)`: aplica las entradas, espera 10 ns y compara `alu_control`
-  con el esperado usando `!==`, así una `x` también cuenta como error. Imprime una línea por prueba con el
-  número, `ALUOp`, `funct`, `alu_control`, el esperado, `OK`/`ERROR` y el nombre del caso.
+- Tarea `probar(op, fn, esperado, caso)`: aplica las entradas, espera 10 ns y compara `alu_control` con el
+  esperado usando `!==`, así una `x` también cuenta como error. Imprime una línea por prueba con el formato
+  del enunciado (`ALUOp=10, funct=100000 -> alu_control=0010`), el esperado, `OK`/`ERROR` y el caso.
 - No usa reloj: el módulo es combinacional, basta con esperar a que la salida se asiente.
-- Tres grupos de pruebas: las 8 instrucciones (1–8), instrucciones I que ignoran `funct` (9–12) y `funct`
-  no definido (13–15).
-- Al final imprime el total de pruebas y de errores.
+- Las pruebas 1–11 son los casos 1–11 de la plantilla, en el mismo orden. En las instrucciones I, `funct`
+  lleva los 6 bits bajos del inmediato de una instrucción real del programa (`movi $1, 7` → `000111`,
+  `addi $9, $8, 10` → `001010`, `subi $7, $9, 15` → `001111`). Las pruebas 12–16 son adicionales.
+- Al final imprime el total de pruebas y si hubo errores.
 - `$dumpfile("ALUControl_tb.vcd")` y `$dumpvars(0, ALUControl_tb)`.
+- **Comprobación del testbench:** con tres errores introducidos a propósito en `ALUControl.v` (quitar el
+  valor por defecto, ADDI como MOVI, MOV mal codificado) el testbench reporta 4, 2 y 1 errores. Detecta los
+  tres.
 
 ## Casos de prueba (resultados de la simulación)
 
-| # | Caso | ALUOp | funct | Esperado | Obtenido | ¿OK? |
-|---|---|:---:|:---:|:---:|:---:|:---:|
-| 1 | MOVI | `00` | `000000` | `0000` | `0000` | ✅ |
-| 2 | ADD | `10` | `100000` | `0010` | `0010` | ✅ |
-| 3 | SUB | `10` | `100100` | `0110` | `0110` | ✅ |
-| 4 | MULT | `10` | `100001` | `1000` | `1000` | ✅ |
-| 5 | DIV | `10` | `100010` | `1001` | `1001` | ✅ |
-| 6 | MOV | `10` | `100011` | `0001` | `0001` | ✅ |
-| 7 | ADDI | `01` | `000000` | `0010` | `0010` | ✅ |
-| 8 | SUBI | `11` | `000000` | `0110` | `0110` | ✅ |
-| 9 | MOVI ignora `funct` (el de ADD) | `00` | `100000` | `0000` | `0000` | ✅ |
-| 10 | MOVI ignora `funct` (todo en 1) | `00` | `111111` | `0000` | `0000` | ✅ |
-| 11 | ADDI ignora `funct` (el de SUB): sigue sumando | `01` | `100100` | `0010` | `0010` | ✅ |
-| 12 | SUBI ignora `funct` (el de ADD): sigue restando | `11` | `100000` | `0110` | `0110` | ✅ |
-| 13 | `funct` no definido (todo en 1) | `10` | `111111` | `1111` | `1111` | ✅ |
-| 14 | `funct` no definido (todo en 0, la instrucción `0x00000000`) | `10` | `000000` | `1111` | `1111` | ✅ |
-| 15 | `funct` de MULT en la hoja `.xlsx`: ya no se reconoce | `10` | `011000` | `1111` | `1111` | ✅ |
+Las columnas siguen la tabla de la plantilla; el esperado sale de la tabla del enunciado y de las decisiones 2
+y 3.
 
-**Total: 15 pruebas, 0 errores.**
+| # | Caso de prueba | ALUOp | funct | Esperado | Obtenido (consola) | ¿OK? |
+|---|---|:---:|:---:|:---:|:---:|:---:|
+| 1 | ADD | `10` | `100000` | `0010` | `0010` | ✅ |
+| 2 | SUB | `10` | `100100` | `0110` | `0110` | ✅ |
+| 3 | MULT | `10` | `100001` | `1000` | `1000` | ✅ |
+| 4 | DIV | `10` | `100010` | `1001` | `1001` | ✅ |
+| 5 | MOV | `10` | `100011` | `0001` | `0001` | ✅ |
+| 6 | MOVI (`funct` elegido: bits bajos de `movi $1, 7`) | `00` | `000111` | `0000` | `0000` | ✅ |
+| 7 | ADDI si llegara con `ALUOp = 00`, como supone la plantilla: sale MOVI. Por eso nuestro ADDI usa `01` (caso 10) | `00` | `001010` | `0000` | `0000` | ✅ |
+| 8 | Con `ALUOp = 00` el `funct` de la suma no cambia nada | `00` | `100000` | `0000` | `0000` | ✅ |
+| 9 | `funct` no definido: nuestro módulo devuelve `1111` | `10` | `111111` | `1111` | `1111` | ✅ |
+| 10 | `ALUOp = 01`: el grupo lo usa para ADDI → suma | `01` | `001010` | `0010` | `0010` | ✅ |
+| 11 | `ALUOp = 11`: el grupo lo usa para SUBI → resta | `11` | `001111` | `0110` | `0110` | ✅ |
+| 12 | Adicional: `funct` todo en 0 (la instrucción `0x00000000`) | `10` | `000000` | `1111` | `1111` | ✅ |
+| 13 | Adicional: `funct` de MULT en la hoja `.xlsx`, ya no se reconoce | `10` | `011000` | `1111` | `1111` | ✅ |
+| 14 | Adicional: ADDI con el `funct` de SUB: sigue sumando | `01` | `100100` | `0010` | `0010` | ✅ |
+| 15 | Adicional: SUBI con el `funct` de ADD: sigue restando | `11` | `100000` | `0110` | `0110` | ✅ |
+| 16 | Adicional: `ALUOp` con `x`: el valor por defecto evita la `x` | `xx` | `100000` | `1111` | `1111` | ✅ |
+
+**Total: 16 pruebas, 0 errores.** En la plantilla, la fila 12 («caso adicional») puede llevar cualquiera de
+las pruebas 12–16.
 
 ### Salida de la consola
 ```
-=== Pruebas de ALUControl ===
- 1  ALUOp=00, funct=000000 -> alu_control=0000 | esperado=0000  OK     MOVI
- 2  ALUOp=10, funct=100000 -> alu_control=0010 | esperado=0010  OK     ADD
- 3  ALUOp=10, funct=100100 -> alu_control=0110 | esperado=0110  OK     SUB
- 4  ALUOp=10, funct=100001 -> alu_control=1000 | esperado=1000  OK     MULT
- 5  ALUOp=10, funct=100010 -> alu_control=1001 | esperado=1001  OK     DIV
- 6  ALUOp=10, funct=100011 -> alu_control=0001 | esperado=0001  OK     MOV
- 7  ALUOp=01, funct=000000 -> alu_control=0010 | esperado=0010  OK     ADDI
- 8  ALUOp=11, funct=000000 -> alu_control=0110 | esperado=0110  OK     SUBI
- 9  ALUOp=00, funct=100000 -> alu_control=0000 | esperado=0000  OK     MOVI ignora funct (el de ADD)
-10  ALUOp=00, funct=111111 -> alu_control=0000 | esperado=0000  OK     MOVI ignora funct (todo en 1)
-11  ALUOp=01, funct=100100 -> alu_control=0010 | esperado=0010  OK     ADDI ignora funct (el de SUB)
-12  ALUOp=11, funct=100000 -> alu_control=0110 | esperado=0110  OK     SUBI ignora funct (el de ADD)
-13  ALUOp=10, funct=111111 -> alu_control=1111 | esperado=1111  OK     funct no definido (todo en 1)
-14  ALUOp=10, funct=000000 -> alu_control=1111 | esperado=1111  OK     funct no definido (todo en 0)
-15  ALUOp=10, funct=011000 -> alu_control=1111 | esperado=1111  OK     funct de MULT en la hoja .xlsx
-=== Fin: pruebas=15, errores=0 ===
-ALUControl_tb.v:76: $finish called at 150 (1ns)
+=== Testbench ALUControl ===
+ 1  ALUOp=10, funct=100000 -> alu_control=0010 | esperado=0010  OK     Caso 1: ADD
+ 2  ALUOp=10, funct=100100 -> alu_control=0110 | esperado=0110  OK     Caso 2: SUB
+ 3  ALUOp=10, funct=100001 -> alu_control=1000 | esperado=1000  OK     Caso 3: MULT
+ 4  ALUOp=10, funct=100010 -> alu_control=1001 | esperado=1001  OK     Caso 4: DIV
+ 5  ALUOp=10, funct=100011 -> alu_control=0001 | esperado=0001  OK     Caso 5: MOV
+ 6  ALUOp=00, funct=000111 -> alu_control=0000 | esperado=0000  OK     Caso 6: MOVI (funct = bits de imm 7)
+ 7  ALUOp=00, funct=001010 -> alu_control=0000 | esperado=0000  OK     Caso 7: ADDI con ALUOp=00 da MOVI
+ 8  ALUOp=00, funct=100000 -> alu_control=0000 | esperado=0000  OK     Caso 8: ALUOp=00 ignora funct de ADD
+ 9  ALUOp=10, funct=111111 -> alu_control=1111 | esperado=1111  OK     Caso 9: funct no definido
+10  ALUOp=01, funct=001010 -> alu_control=0010 | esperado=0010  OK     Caso 10: ALUOp=01, ADDI (suma)
+11  ALUOp=11, funct=001111 -> alu_control=0110 | esperado=0110  OK     Caso 11: ALUOp=11, SUBI (resta)
+12  ALUOp=10, funct=000000 -> alu_control=1111 | esperado=1111  OK     Adicional: funct 000000 (instr. 0)
+13  ALUOp=10, funct=011000 -> alu_control=1111 | esperado=1111  OK     Adicional: funct de MUL en la .xlsx
+14  ALUOp=01, funct=100100 -> alu_control=0010 | esperado=0010  OK     Adicional: ADDI con funct de SUB
+15  ALUOp=11, funct=100000 -> alu_control=0110 | esperado=0110  OK     Adicional: SUBI con funct de ADD
+16  ALUOp=xx, funct=100000 -> alu_control=1111 | esperado=1111  OK     Adicional: ALUOp x
+=== 16 pruebas, todas las pruebas OK ===
+ALUControl_tb.v:98: $finish called at 160000 (1ps)
 ```
 
-## Capturas (`capturas/`, pendientes)
-- `consola.png`: comandos de compilación y ejecución, y las 15 líneas de prueba.
-- `gtkwave.png`: `ALUOp`, `funct`, `alu_control` y `esperado` en binario, con las 15 pruebas a la vista
-  (150 ns) y *Zoom Fit*.
+## Capturas
+- `gtkwave.png` (lista): `ALUOp`, `funct`, `alu_control` y `esperado` en binario, con las 16 pruebas a la
+  vista (160 ns) y *Zoom Fit*.
+- `consola.png` (por repetir): desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`) y
+  las 16 líneas de prueba. La captura anterior solo mostraba `vvp` y es de la versión con 15 pruebas.
 
 ## Comandos
 ```powershell

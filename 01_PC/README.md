@@ -1,6 +1,6 @@
 # 01 — Program Counter (PC)
 
-**Entrega 1 · Ejercicio 1** · Estado: ✅ implementado y verificado (10/10 ciclos OK) · capturas en `capturas/`
+**Entrega 1 · Ejercicio 1** · Estado: ✅ implementado y verificado (10/10 ciclos OK) · capturas listas
 
 ## Objetivo
 Registro de 32 bits que guarda la dirección de la instrucción actual y la actualiza en cada ciclo de reloj.
@@ -59,7 +59,7 @@ ciclo 10  t= 96 ns  reset=0  next_pc=         1  ->  current_pc=         1  espe
 === 10 ciclos, todas las pruebas OK ===
 ```
 
-## Capturas (`capturas/`)
+## Capturas
 - `consola.png`: comando de compilación/ejecución y una línea por ciclo.
 - `gtkwave.png`: `clk`, `reset`, `next_pc`, `current_pc` en **decimal**, *Zoom Fit*.
 

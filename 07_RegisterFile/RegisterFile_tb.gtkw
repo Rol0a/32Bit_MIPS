@@ -1,0 +1,25 @@
+[*]
+[*] GTKWave save file - RegisterFile_tb
+[*] Uso: gtkwave RegisterFile_tb.vcd RegisterFile_tb.gtkw   (luego View -> Zoom Fit)
+[*]
+[dumpfile] "RegisterFile_tb.vcd"
+[timestart] 0
+[size] 1900 280
+[pos] 10 40
+[sst_width] 45
+[signals_width] 190
+[sst_expanded] 0
+[sst_vpaned_height] 120
+@28
+RegisterFile_tb.clk
+RegisterFile_tb.reset
+RegisterFile_tb.RegWrite
+@24
+RegisterFile_tb.write_reg[4:0]
+RegisterFile_tb.write_data[31:0]
+RegisterFile_tb.read_reg1[4:0]
+RegisterFile_tb.read_data1[31:0]
+RegisterFile_tb.read_reg2[4:0]
+RegisterFile_tb.read_data2[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

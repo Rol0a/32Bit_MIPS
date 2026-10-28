@@ -1,7 +1,6 @@
 # 03 — Integración PC + IMEM
 
-**Entrega 1 · Ejercicio 3** · Estado: ✅ implementado y verificado (10/10 ciclos OK) · `gtkwave.png` lista ·
-`consola.png` pendiente
+**Entrega 1 · Ejercicio 3** · Estado: ✅ implementado y verificado (10/10 ciclos OK) · capturas listas
 
 ## Objetivo
 Conectar el PC con la IMEM para que cada ciclo se lea la instrucción apuntada por el PC.
@@ -108,7 +107,7 @@ PC_IMEM_tb.v:139: $finish called at 104000 (1ps)
 ```
 
 ## Capturas
-- `consola.png` (pendiente): desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`) y
+- `consola.png` ✅: desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`) y
   las dos líneas por ciclo.
 - `gtkwave.png` ✅: `clk`, `reset`, `current_pc` y `next_pc` en decimal, `instruction` en hex, `opcode`,
   `rs`, `rt`, `rd`, `shamt` y `funct` en binario, `immediate` en decimal con signo y `address` en decimal;

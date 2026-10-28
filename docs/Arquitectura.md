@@ -5,8 +5,8 @@
 > **Documento técnico de referencia de la Práctica 1.** Explica qué hace cada parte del código, **por qué está
 > hecha así** y cómo encaja en la arquitectura completa de un procesador de 32 bits.
 >
-> **Estado descrito:** 28/10/2026, commit `441014f`. Todos los testbenches se volvieron a simular con Icarus
-> Verilog 14 al redactar este documento.
+> **Estado descrito:** 28/10/2026, commit `512e942` más la revisión de `06` y `07` contra la plantilla de la
+> entrega 3. Todos los testbenches se volvieron a simular con Icarus Verilog 14.
 
 **Cómo leerlo:** las secciones 1 y 2 dan los fundamentos; la 3 define la ISA; la 4 presenta la arquitectura
 completa; la 5 recorre el código módulo por módulo; la 6 explica la temporización; la 7 sigue el programa ciclo a
@@ -59,9 +59,9 @@ principales son:
 | IMEM | [`02_IMEM`](../02_IMEM/) | Combinacional (ROM) | ✅ | 18 lecturas, 0 errores |
 | PC + IMEM | [`03_PC_IMEM`](../03_PC_IMEM/) | Integración | ✅ | 10 ciclos, 0 errores |
 | ControlUnit | [`04_ControlUnit`](../04_ControlUnit/) | Combinacional | ✅ | 12 pruebas, 0 errores |
-| ALU | [`05_ALU`](../05_ALU/) | Combinacional | ⏳ marcador vacío | — |
-| ALUControl | [`06_ALUControl`](../06_ALUControl/) | Combinacional | ✅ | 15 pruebas, 0 errores |
-| RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 85 comprobaciones, 0 errores |
+| ALU | [`05_ALU`](../05_ALU/) | Combinacional | ✅ | 22 pruebas, 0 errores |
+| ALUControl | [`06_ALUControl`](../06_ALUControl/) | Combinacional | ✅ | 16 pruebas, 0 errores |
+| RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 19 pruebas, 0 errores |
 | Extensión de signo, muxes, siguiente PC, módulo superior | — | Combinacional | ⏳ Fase 4 | — |
 
 ---
@@ -739,6 +739,7 @@ código de 4 bits que selecciona la operación de la ALU.
 
 ```verilog
 always @(*) begin
+    alu_control = 4'b1111;                             // por defecto: no definido
     case (ALUOp)
         2'b00: alu_control = 4'b0000;                  // MOVI: funct se ignora
         2'b01: alu_control = 4'b0010;                  // ADDI: suma
@@ -748,10 +749,10 @@ always @(*) begin
                    6'b100001: alu_control = 4'b1000;   // MUL
                    6'b100010: alu_control = 4'b1001;   // DIV
                    6'b100011: alu_control = 4'b0001;   // MOV
-                   default:   alu_control = 4'b1111;   // funct no definido
+                   default: ;                          // funct no definido: queda 1111
                endcase
         2'b11: alu_control = 4'b0110;                  // SUBI: resta
-        default: alu_control = 4'b1111;                // ALUOp con x/z
+        default: ;                                     // ALUOp con x/z: queda 1111
     endcase
 end
 ```
@@ -759,8 +760,9 @@ end
 - **`case` anidado:** `funct` solo se consulta cuando `ALUOp = 10`. En MOVI, ADDI y SUBI, esos 6 bits son la parte
   baja del **inmediato** y pueden valer cualquier cosa. Por ejemplo, `addi $9, $8, 10` llega con
   `funct = 001010`. Ignorarlos es obligatorio, no opcional.
-- **Sin latches:** los dos `case` tienen `default`, así que todo camino asigna `alu_control`. El `default` externo
-  solo se alcanza con `ALUOp` en `x`/`z`, porque los cuatro valores binarios ya están cubiertos.
+- **Sin latches:** `alu_control` recibe `1111` antes del `case`, como pide la plantilla y como hacen la
+  ControlUnit y la ALU, así que todo camino le asigna un valor. El `default` externo solo se alcanza con `ALUOp`
+  en `x`/`z`, porque los cuatro valores binarios ya están cubiertos.
 
 **De dónde salen los códigos de `alu_control`.** Vienen del esquema de Patterson & Hennessy, donde los 4 bits
 significan `{Ainvert, Bnegate, Operation[1:0]}`:
@@ -778,7 +780,7 @@ significan `{Ainvert, Bnegate, Operation[1:0]}`:
 
 | Decisión | Alternativa | Por qué |
 | :--- | :--- | :--- |
-| **`funct` del enunciado** (D1) | Los de la `.xlsx` | Las dos tablas se contradecían (`100010` era SUB en una y DIV en la otra). ALUControl se califica contra la tabla del enunciado, que además es la única que incluye MOV. El `funct` de MUL de la `.xlsx` (`011000`) ahora da `1111` (prueba 15) |
+| **`funct` del enunciado** (D1) | Los de la `.xlsx` | Las dos tablas se contradecían (`100010` era SUB en una y DIV en la otra). ALUControl se califica contra la tabla del enunciado, que además es la única que incluye MOV. El `funct` de MUL de la `.xlsx` (`011000`) ahora da `1111` (prueba 13) |
 | **ADDI/SUBI reutilizan `0010`/`0110`** | Códigos propios | A la ALU no le importa si `src2` viene de un registro o del inmediato; eso lo decide el mux `ALUSrc`. Menos códigos significa una ALU más simple |
 | **`1111` para combinaciones no definidas** (D9) | `0000` | `0000` es MOVI, una operación válida, y un error pasaría inadvertido. `1111` no corresponde a ninguna operación y se reconoce a simple vista en GTKWave. La ALU lo convierte en `result = 0` |
 | **MOVI y MOV como «paso»** (`0000`/`0001`) | `$0 + imm` o `$rs + $0` con un ADD | El paso de un operando no depende de que el otro campo valga 0. Es más robusto frente a una codificación descuidada de `rs` o `rt` |
@@ -787,16 +789,21 @@ significan `{Ainvert, Bnegate, Operation[1:0]}`:
 que escribe es `0`. La ControlUnit no ve `funct` y pone `RegWrite = 1`. Evitarlo requeriría una señal de
 «instrucción ilegal», que queda fuera del alcance.
 
-**Verificación** ([`ALUControl_tb.v`](../06_ALUControl/ALUControl_tb.v)): 8 instrucciones, 4 instrucciones I con
-`funct` «basura» que debe ignorarse y 3 `funct` no definidos (todo en 1, todo en 0 y el MUL de la `.xlsx`).
-**Resultado: 15 pruebas, 0 errores.**
+**Verificación** ([`ALUControl_tb.v`](../06_ALUControl/ALUControl_tb.v)): las pruebas 1–11 son los casos 1–11 de
+la plantilla, en orden; las instrucciones I llevan en `funct` los bits bajos de un inmediato real del programa. Las
+pruebas 12–16 añaden `funct` no definidos (todo en 0, el MUL de la `.xlsx`), ADDI/SUBI con el `funct` de otra
+operación y `ALUOp = xx`. **Resultado: 16 pruebas, 0 errores.**
+
+> **Diferencia con la plantilla de la entrega 3.** Su caso 7 supone que ADDI llega con `ALUOp = 00` y sus casos
+> 10–11 tratan `01` y `11` como no definidos. Con D2 no es así: la prueba 7 muestra que ADDI con `00` daría
+> `0000` (MOVI), y las pruebas 10–11 que `01`/`11` dan suma y resta. Hay que explicarlo en esas filas del `.docx`.
 
 <a id="s5-6"></a>
 
-### 5.6 ALU: unidad aritmético-lógica (pendiente)
+### 5.6 ALU: unidad aritmético-lógica
 
-**Estado:** [`ALU.v`](../05_ALU/ALU.v) y [`ALU_tb.v`](../05_ALU/ALU_tb.v) son marcadores vacíos. Su
-especificación y sus decisiones ya están cerradas.
+**Estado:** implementada en [`ALU.v`](../05_ALU/ALU.v) y verificada con [`ALU_tb.v`](../05_ALU/ALU_tb.v): los 12
+casos de la plantilla y 10 adicionales, 22 pruebas, 0 errores.
 
 | Puerto | Dir. | Ancho | Descripción |
 | :--- | :---: | :---: | :--- |
@@ -826,8 +833,8 @@ especificación y sus decisiones ya están cerradas.
   llegaría al banco de registros. Con `0`, el comportamiento es determinista y `zero = 1` lo señala.
 - **Control no definido → 0:** mismo razonamiento, y combina con el `1111` de ALUControl.
 
-**Esquema de referencia** (no está en el repositorio; cumple las decisiones y se usó para comprobar la traza de la
-sección 7):
+**Código** (resumen de [`ALU.v`](../05_ALU/ALU.v); es el mismo esquema con el que se calculó primero la traza de
+la sección 7):
 
 ```verilog
 always @(*) begin
@@ -886,11 +893,11 @@ GTKWave como *Signed Decimal*.
 **Código** ([`RegisterFile.v`](../07_RegisterFile/RegisterFile.v)):
 
 ```verilog
-reg [31:0] registers [0:31];                                                   // :16
-assign read_data1 = (read_reg1 == 5'd0) ? 32'd0 : registers[read_reg1];        // :21-22
-assign read_data2 = (read_reg2 == 5'd0) ? 32'd0 : registers[read_reg2];        // :24-25
+reg [31:0] registers [0:31];                                                   // :24
+assign read_data1 = (read_reg1 == 5'd0) ? 32'd0 : registers[read_reg1];        // :33
+assign read_data2 = (read_reg2 == 5'd0) ? 32'd0 : registers[read_reg2];        // :34
 
-always @(posedge clk) begin                                                    // :28-42
+always @(posedge clk) begin                                                    // :40-59
     if (reset)
         for (i = 0; i < 32; i = i + 1) registers[i] <= 32'd0;
     else begin
@@ -911,9 +918,9 @@ end
 
 | Mecanismo | Línea | Qué garantiza |
 | :--- | :---: | :--- |
-| La lectura de `$0` se fuerza a 0 | 21–25 | Los puertos dan 0 aunque el arreglo tuviera `x` (antes del reset) |
-| Se ignora la escritura con `write_reg = 0` | 38 | Una instrucción con destino `$0` no tiene efecto |
-| `registers[0] <= 0` en cada flanco | 35 | El valor interno también es 0, visible en `uut.registers[0]` y en GTKWave |
+| La lectura de `$0` se fuerza a 0 | 33–34 | Los puertos dan 0 aunque el arreglo tuviera `x` (antes del reset) |
+| Se ignora la escritura con `write_reg = 0` | 56 | Una instrucción con destino `$0` no tiene efecto |
+| `registers[0] <= 0` en cada flanco | 51 | El valor interno también es 0, visible en `uut.registers[0]` y en GTKWave |
 
 Con cualquiera de los dos primeros bastaría; juntos son redundantes, pero no estorban.
 
@@ -930,11 +937,14 @@ Con cualquiera de los dos primeros bastaría; juntos son redundantes, pero no es
 **Verificación** ([`RegisterFile_tb.v`](../07_RegisterFile/RegisterFile_tb.v)):
 
 - Accede al arreglo interno con una **referencia jerárquica** (`uut.registers[i]`) para comprobar los 32 registros
-  tras el reset.
-- Casos: reset inicial (32), escrituras y lecturas por ambos puertos (6), escritura en `$0` (3), `RegWrite = 0`
-  (2), `$31` con `0xDEADBEEF` (2), **la escritura espera al flanco** (2), **lectura asíncrona** sin flanco (4) y
-  **reset con prioridad sobre `RegWrite`** (34).
-- **Resultado: 85 comprobaciones, 0 errores.**
+  tras el reset e imprimir `R1=…, R2=…, R3=…, R0=…` (formato del enunciado) después de cada ciclo de escritura.
+- Sigue los casos 1–11 de la plantilla: reset; escribir y leer; dos registros a la vez y el **mismo registro por
+  los dos puertos**; intento de escribir `$0` (puertos y arreglo); `RegWrite = 0`; **lectura asíncrona** sin
+  flanco; **escritura síncrona con el dato cambiando entre flancos** (se guarda el del flanco); sobrescribir;
+  `$31` con `0xDEADBEEF`; leer el registro que se está escribiendo; **reset con datos**, comprobando que nada se
+  borra hasta el flanco. Más un adicional: antes del primer reset, `$0` ya se lee como 0 y `$1` como `x`.
+- Cuatro mutaciones (escribir `$0`, reset asíncrono, ignorar `RegWrite`, no forzar `$0` al leer) dan error.
+- **Resultado: 19 pruebas, 0 errores.**
 
 <a id="s5-8"></a>
 
@@ -1000,7 +1010,7 @@ se asignan juntos al final del paso de tiempo. Es la regla: **`<=` en lógica se
 `subi $7, $9, 15` lee `$9` y escribe `$7`, pero una instrucción como `add $1, $1, $2` lee y escribe el **mismo**
 registro. Durante el ciclo, la lectura asíncrona entrega el valor viejo de `$1`; la ALU calcula; en el flanco se
 escribe el nuevo valor. La lectura y la escritura nunca se solapan dentro del ciclo, así que no hay carrera. El
-caso 6 del testbench del banco lo comprueba: antes del flanco se lee `10` y después, `99`.
+caso 10 del testbench del banco lo comprueba: antes del flanco se lee `10` y después, `99`.
 
 ### 6.4 Reset y estado inicial
 
@@ -1040,7 +1050,7 @@ no se usa en procesadores reales y por qué existen los diseños multiciclo y se
 ## 7. Ejecución completa del programa
 
 Esto es lo que hará el datapath de la Fase 4 con el programa de la IMEM. Se calculó a mano y se **comprobó en
-simulación** con los módulos actuales, un esquema de ALU como el de la sección 5.6 y las piezas de la sección 5.8,
+simulación** con los seis módulos reales (ALU incluida) y las piezas de la sección 5.8,
 montados en un banco de pruebas provisional que no está en el repositorio.
 
 Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro destino se escribe en el flanco que
@@ -1090,7 +1100,7 @@ Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro 
 | **Autocomprobación** | Contadores `pruebas`/`errores` y una línea de resumen | No hace falta leer cientos de líneas para saber si pasó |
 | **Esperado independiente del DUT** | Valores escritos a mano en el testbench, nunca leídos del módulo | Si el esperado saliera del propio módulo, un error se compararía consigo mismo |
 | **Comparación de cuatro estados** | `!==` para contar errores y `===` para el `OK` | Con `!=`, una `x` daría «desconocido» y no contaría como error. Con `!==` sí cuenta, y una `x` esperada solo coincide con una `x` real |
-| **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `escribir`, `leer_y_verificar` | Cada caso es una línea legible y el formato de salida es uniforme |
+| **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `ciclo`, `comprobar`, `revisar_reset` | Cada caso es una línea legible y el formato de salida es uniforme |
 | **Casos de borde** | Opcode `x`, direcciones fuera de rango, `0xFFFFFFFF`, `$0`, `$31`, reset con prioridad, cambios entre flancos | Los errores viven en los bordes |
 | **Pruebas de mutación** | Copias defectuosas del módulo (sin el valor por defecto de `Jump`, `ALUOp` cambiado, PC `+4`, `addr[3:0]`) | Demuestran que el testbench **detecta** los errores que pretende prevenir |
 | **Ondas** | `$dumpfile`/`$dumpvars(0, tb)` y vistas guardadas `.gtkw` | La plantilla pide capturas; el `.gtkw` fija las señales y sus formatos |
@@ -1103,9 +1113,9 @@ Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro 
 | `IMEM_tb` | Dirección cada 10 ns | 18 | 180 ns | ✅ |
 | `PC_IMEM_tb` | Reloj; el PC avanza solo | 10 | 104 ns | ✅ |
 | `ControlUnit_tb` | Opcode cada 10 ns | 12 | 120 ns | ✅ |
-| `ALUControl_tb` | `ALUOp`/`funct` cada 10 ns | 15 | 150 ns | ✅ |
-| `RegisterFile_tb` | Reloj; acceso jerárquico | 85 | 87 ns | ✅ |
-| `ALU_tb` | — | — | — | ⏳ vacío |
+| `ALUControl_tb` | `ALUOp`/`funct` cada 10 ns | 16 | 160 ns | ✅ |
+| `RegisterFile_tb` | Reloj; entradas en flanco ↓; acceso jerárquico | 19 | 107 ns | ✅ |
+| `ALU_tb` | Control y operandos cada 10 ns | 22 | 220 ns | ✅ |
 
 ### 8.3 Comandos
 
@@ -1132,10 +1142,10 @@ vvp PC_IMEM_tb.vvp
 
 | Idioma | Dónde | Por qué |
 | :--- | :--- | :--- |
-| `` `timescale 1ns / 1ps `` | Todos los archivos | Unidad de los `#retardo` (1 ns) y precisión de la simulación. En `06` y `07` es `1ns/1ns`; no cambia nada porque los módulos no tienen retardos |
+| `` `timescale 1ns / 1ps `` | Todos los archivos | Unidad de los `#retardo` (1 ns) y precisión de la simulación |
 | `output reg` en lógica combinacional | ControlUnit, ALUControl | Verilog exige `reg` para lo que se asigna dentro de un `always`. **`reg` no implica un registro físico** |
 | `always @(*)` | ControlUnit, ALUControl | La lista de sensibilidad completa es automática: no se puede olvidar una entrada |
-| Valores por defecto antes del `case` | ControlUnit | Evitan latches: toda salida se asigna en todo camino |
+| Valores por defecto antes del `case` | ControlUnit, ALUControl, ALU | Evitan latches: toda salida se asigna en todo camino |
 | `default` en cada `case` | ControlUnit, ALUControl | Cubre las combinaciones no listadas **y** las entradas con `x`/`z` |
 | `always @(posedge clk)` + `<=` | PC, RegisterFile | Elementos con estado sincronizados con un solo flanco (sección 6.2) |
 | `assign` para lecturas | IMEM, RegisterFile | Lectura combinacional, necesaria en un monociclo |
@@ -1145,7 +1155,7 @@ vvp PC_IMEM_tb.vvp
 | `===` / `!==` | Testbenches | Comparación exacta de cuatro estados (0, 1, `x`, `z`) |
 | Wires de campos en el testbench | `IMEM_tb`, `PC_IMEM_tb` | `wire [5:0] opcode = instruction[31:26]` hace visible cada campo en GTKWave |
 | Referencia jerárquica | `RegisterFile_tb` | `uut.registers[i]` inspecciona el estado interno sin añadir puertos |
-| `$timeformat(-9, 0, " ns", 6)` | `PC_tb`, `PC_IMEM_tb` | `%t` en ns enteros: la consola se lee igual que el eje de GTKWave |
+| `$timeformat(-9, 0, " ns", 6)` | `PC_tb`, `PC_IMEM_tb`, `RegisterFile_tb` | `%t` en ns enteros: la consola se lee igual que el eje de GTKWave |
 
 ---
 
@@ -1182,35 +1192,42 @@ vvp PC_IMEM_tb.vvp
 | Entrega | Módulos | Código | Testbench | Capturas | Plantilla `.docx` |
 | :--- | :--- | :---: | :---: | :--- | :---: |
 | 1 · PC e IMEM | PC, IMEM, PC + IMEM | ✅ | ✅ | `consola.png` y `gtkwave.png` en las tres carpetas | Por completar |
-| 2 · Control y ALU | ControlUnit, ALU | ✅ / ⏳ | ✅ / ⏳ | ControlUnit ✅; ALU ⏳ | Por completar |
-| 3 · ALUControl y banco | ALUControl, RegisterFile | ✅ | ✅ | ALUControl ✅; RegisterFile ⏳ | Sin plantilla |
+| 2 · Control y ALU | ControlUnit, ALU | ✅ | ✅ | `consola.png` y `gtkwave.png` en las dos carpetas | Por completar |
+| 3 · ALUControl y banco | ALUControl, RegisterFile | ✅ | ✅ | `gtkwave.png` en las dos; `consola.png`: repetir la de ALUControl, falta la del banco | Por completar |
 | Fase 4 · Datapath | Módulo superior + piezas de la sección 5.8 | ⏳ | ⏳ | — | — |
 
-**Siguiente paso natural:** implementar la ALU (sección 5.6) y su testbench con los 12 casos de la plantilla. Con
-ella, todos los módulos de la práctica quedan completos.
+**Siguiente paso natural:** la integración del datapath (sección 5.8). Ya se comprobó que los seis módulos
+compilan juntos sin advertencias de `iverilog -Wall` y que, conectados con las piezas de la sección 5.8 en una
+prueba provisional, reproducen la traza y el estado final de la sección 7.
 
 ### 11.2 Inconsistencias detectadas
 
-El código es coherente entre módulos. La documentación, en cambio, se quedó atrás en varios puntos:
+El código es coherente entre módulos. Estado de los puntos de documentación detectados (✅ = corregido en la
+revisión del 28/10/2026):
 
 | # | Dónde | Qué pasa | Riesgo |
 | :---: | :--- | :--- | :--- |
-| 1 | [`README.md`](../README.md) (raíz) · tabla ISA | Sigue mostrando los `funct` de la `.xlsx` con ⚠ (SUB `100010`, MUL `011000`, DIV `011010`), que **no** son los que usan la IMEM ni ALUControl | **Alto:** alguien que codifique desde el README generaría instrucciones incorrectas |
-| 2 | `README.md` (raíz) · estado | «`01_PC` implementado… los demás son marcadores vacíos»; la tabla de estructura marca `02`–`07` como «Pendiente»; las decisiones 1–6 siguen como «pendientes» aunque están cerradas e implementadas | Medio: confunde el estado real |
-| 3 | Convención de capturas | El README raíz y los de `01`, `02`, `05`, `06` y `07` hablan de una subcarpeta `capturas/`, pero las imágenes están en la raíz de cada módulo | Bajo |
-| 4 | READMEs de `02`, `03` y `06` | Dicen «capturas pendientes» aunque `consola.png` y `gtkwave.png` existen | Bajo |
+| 1 ✅ | [`README.md`](../README.md) (raíz) · tabla ISA | Sigue mostrando los `funct` de la `.xlsx` con ⚠ (SUB `100010`, MUL `011000`, DIV `011010`), que **no** son los que usan la IMEM ni ALUControl | **Alto:** alguien que codifique desde el README generaría instrucciones incorrectas |
+| 2 ✅ | `README.md` (raíz) · estado | «`01_PC` implementado… los demás son marcadores vacíos»; la tabla de estructura marca `02`–`07` como «Pendiente»; las decisiones 1–6 siguen como «pendientes» aunque están cerradas e implementadas | Medio: confunde el estado real |
+| 3 ✅ | Convención de capturas | El README raíz y los de `01`, `02`, `05`, `06` y `07` hablan de una subcarpeta `capturas/`, pero las imágenes están en la raíz de cada módulo | Bajo |
+| 4 ✅ | READMEs de `02`, `03` y `06` | Dicen «capturas pendientes» aunque `consola.png` y `gtkwave.png` existen | Bajo |
 | 5 | Archivos generados | La convención dice que `*.vvp` y `*.vcd` no se versionan, pero están en git y no hay `.gitignore` | Bajo: ruido en los diffs |
 | 6 | [`04_ControlUnit/ControlUnit.vcd`](../04_ControlUnit/ControlUnit.vcd) | No es un VCD: es un ejecutable `vvp` compilado (empieza con `#! …/vvp`), probablemente de un `iverilog -o ControlUnit.vcd` | Bajo: archivo sobrante |
-| 7 | [`07_RegisterFile/README.md`](../07_RegisterFile/README.md) | Dice que la tabla de la Unidad de Control «todavía es una propuesta»; ya está aprobada e implementada | Bajo |
-| 8 | [`05_ALU/README.md`](../05_ALU/README.md) | Presenta signo, `/0` y control no definido como «propuesta»; ya están decididos (D4) y otros READMEs los dan por hechos | Bajo |
-| 9 | Estilo de `06` y `07` | `` `timescale 1ns/1ns ``, sin cabecera de archivo, comentarios sin tildes y otro formato de línea de resumen, frente al estilo de `01`–`04` | Cosmético: en el `.docx` se nota la diferencia |
-| 10 | `07_RegisterFile` | No tiene `.gtkw` ni capturas | Pendiente de entrega |
+| 7 ✅ | [`07_RegisterFile/README.md`](../07_RegisterFile/README.md) | Dice que la tabla de la Unidad de Control «todavía es una propuesta»; ya está aprobada e implementada | Bajo |
+| 8 ✅ | [`05_ALU/README.md`](../05_ALU/README.md) | Presenta signo, `/0` y control no definido como «propuesta»; ya están decididos (D4) y otros READMEs los dan por hechos | Bajo |
+| 9 ✅ | Estilo de `06` y `07` | `` `timescale 1ns/1ns ``, sin cabecera de archivo, comentarios sin tildes y otro formato de línea de resumen, frente al estilo de `01`–`04` | Cosmético: en el `.docx` se nota la diferencia |
+| 10 ✅ | `07_RegisterFile` | No tenía `.gtkw` ni capturas; ya tiene `.gtkw` y `gtkwave.png` | Falta `consola.png` |
+| 11 | `consola.png` de `02_IMEM` y `06_ALUControl` | Solo muestran `vvp`; la plantilla pide ver también `iverilog`. La de `06` es de la versión anterior del testbench | Hay que repetirlas |
+| 12 | `consola.png` de `04_ControlUnit` | Empieza con un intento fallido (`vvp ControlUnit.vvp: Unable to open input file`) | Cosmético: repetir o recortar |
 
-### 11.3 Riesgo técnico para la próxima entrega
+### 11.3 Riesgo técnico para la integración
 
-La trampa de signo de la sección 5.6. Es el error más probable al escribir la ALU con un `?:` compacto y solo se
-manifiesta con dividendos negativos. El caso 12 de la plantilla (`−20 / 4`) lo detectaría: daría 1073741819 en
-lugar de −5.
+- **Extensión de signo:** si se extiende con ceros, `movi $2, -3` carga `65533` y `sub`, `mul` y `div` del programa
+  dan otros valores. El estado final de la sección 7 lo detecta (`$2 = −3`, `$5 = −21`).
+- **Orden de los campos en los muxes:** `RegDst = 1` elige `rd = instr[15:11]` y `0` elige `rt = instr[20:16]`;
+  invertirlos escribe en el registro equivocado (por ejemplo, `add $3, $1, $2` escribiría `$2`).
+- **Reset:** el PC y el banco deben recibir el mismo `reset` y soltarlo después del primer flanco, como en
+  `PC_IMEM_tb`; si no, la instrucción 0 no se ejecuta un ciclo completo.
 
 ---
 

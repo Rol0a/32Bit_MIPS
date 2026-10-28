@@ -15,7 +15,7 @@
   <img src="https://img.shields.io/badge/HDL-Verilog-6366F1?style=for-the-badge&labelColor=18181B" alt="HDL: Verilog">
   <img src="https://img.shields.io/badge/Arquitectura-32_bits-0EA5E9?style=for-the-badge&labelColor=18181B" alt="Arquitectura: 32 bits">
   <img src="https://img.shields.io/badge/Simulador-Icarus_Verilog_14-8B5CF6?style=for-the-badge&labelColor=18181B" alt="Simulador: Icarus Verilog 14">
-  <img src="https://img.shields.io/badge/PC-Verificado-10B981?style=for-the-badge&labelColor=18181B" alt="PC: verificado">
+  <img src="https://img.shields.io/badge/Testbenches-7_de_7_OK-10B981?style=for-the-badge&labelColor=18181B" alt="Testbenches: 7 de 7 OK">
 </p>
 
 <p align="center">
@@ -28,12 +28,12 @@
 
 Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y Banco de Registros**. Cada módulo se verifica con su propio testbench antes de integrarlo en el datapath de las siguientes prácticas.
 
-> **Estado actual:** `01_PC` implementado y verificado; capturas listas. Los demás archivos `.v` siguen siendo marcadores vacíos.
+> **Estado actual:** los seis módulos y la integración PC + IMEM están implementados y verificados: 7 testbenches, 0 errores. Una prueba provisional que conecta los seis módulos ejecuta el programa de la IMEM y deja en el banco los valores calculados a mano ([Arquitectura §7](docs/Arquitectura.md#s7)).
 >
-> **Próximo paso:** resolver las inconsistencias de la ISA antes de construir el programa de la IMEM.
+> **Próximo paso:** completar las capturas de consola pendientes y las plantillas `.docx`, y empezar la integración del datapath ([Fase 4](#fase-4--integración-del-datapath-siguiente)).
 
 **Navegación**  
-[Entregas](#entregas-y-alcance) · [Repositorio](#estructura-del-repositorio) · [Simulación](#herramientas-y-comandos) · [ISA](#conjunto-de-instrucciones-isa) · [Hoja de ruta](#hoja-de-ruta) · [Decisiones pendientes](#decisiones-pendientes) · [Notas técnicas](#notas-técnicas)
+[Entregas](#entregas-y-alcance) · [Repositorio](#estructura-del-repositorio) · [Simulación](#herramientas-y-comandos) · [ISA](#conjunto-de-instrucciones-isa) · [Hoja de ruta](#hoja-de-ruta) · [Decisiones](#decisiones-de-diseño) · [Notas técnicas](#notas-técnicas)
 
 ---
 
@@ -43,7 +43,7 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 | :--- | :--- | :--- | :--- |
 | **1 · PC e IMEM** | Program Counter, memoria de instrucciones e integración | `01_PC` · `02_IMEM` · `03_PC_IMEM` | [Entrega_PC_IMEM.docx](docs/Entrega_PC_IMEM.docx) |
 | **2 · Control y ALU** | Unidad de Control y ALU | `04_ControlUnit` · `05_ALU` | [Entrega_ControlUnit_ALU.docx](docs/Entrega_ControlUnit_ALU.docx) |
-| **3 · ALUControl y registros** | ALUControl y Banco de Registros | `06_ALUControl` · `07_RegisterFile` | Pendiente |
+| **3 · ALUControl y registros** | ALUControl y Banco de Registros | `06_ALUControl` · `07_RegisterFile` | [Entrega_ALUControl_RegisterFile.docx](docs/Entrega_ALUControl_RegisterFile.docx) |
 
 ### Evidencias por ejercicio
 
@@ -57,13 +57,13 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 
 | Carpeta | Contenido | Estado |
 | :--- | :--- | :--- |
-| [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado |
-| [`02_IMEM/`](02_IMEM/) | Entrega 1 · Ejercicio 2 | Pendiente |
-| [`03_PC_IMEM/`](03_PC_IMEM/) | Entrega 1 · Ejercicio 3 | Pendiente |
-| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | Pendiente |
-| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | Pendiente |
-| [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 | Pendiente |
-| [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | Pendiente |
+| [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado · capturas listas |
+| [`02_IMEM/`](02_IMEM/) | Entrega 1 · Ejercicio 2 | ✅ Verificado · repetir `consola.png` (falta `iverilog`) |
+| [`03_PC_IMEM/`](03_PC_IMEM/) | Entrega 1 · Ejercicio 3 | ✅ Verificado · capturas listas |
+| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · capturas listas |
+| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · capturas listas |
+| [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 | ✅ Verificado · repetir `consola.png` |
+| [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | ✅ Verificado · falta `consola.png` |
 
 <details>
 <summary><strong>Ver árbol completo de archivos</strong></summary>
@@ -72,9 +72,11 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 P1/
 ├── README.md                       # Planificación general
 ├── docs/
-│   ├── Entrega_PC_IMEM.docx         # Plantilla de la entrega 1
-│   ├── Entrega_ControlUnit_ALU.docx # Plantilla de la entrega 2
-│   └── Tabla Opcode y Funct.xlsx   # Tabla de opcodes y funct
+│   ├── Arquitectura.md                       # Documento técnico de referencia
+│   ├── Entrega_PC_IMEM.docx                  # Plantilla de la entrega 1
+│   ├── Entrega_ControlUnit_ALU.docx          # Plantilla de la entrega 2
+│   ├── Entrega_ALUControl_RegisterFile.docx  # Plantilla de la entrega 3
+│   └── Tabla Opcode y Funct.xlsx             # Opcodes (sus funct no se usan: D1)
 ├── 01_PC/
 │   ├── README.md                   # Especificación, decisiones y casos
 │   ├── PC.v
@@ -110,8 +112,8 @@ P1/
 
 - **Módulos:** un módulo por archivo, con el mismo nombre: `PC.v` → `module PC`.
 - **Testbenches:** archivo `<Modulo>_tb.v`, módulo `<Modulo>_tb` y ondas en `<Modulo>_tb.vcd`.
-- **Capturas:** subcarpeta `capturas/` dentro de cada ejercicio, con `consola.png` y `gtkwave.png`.
-- **Generados:** los archivos `*.vvp` y `*.vcd` no se versionan; se regeneran al simular.
+- **Capturas:** `consola.png` y `gtkwave.png` en la raíz de la carpeta de cada ejercicio, junto a la vista guardada `<Modulo>_tb.gtkw`.
+- **Generados:** los archivos `*.vvp` y `*.vcd` se regeneran al simular. Hoy están en git (no hay `.gitignore`), pero no se editan a mano.
 - **Reutilización:** los módulos compartidos se compilan desde su carpeta original; **no se copian**.
 
 ## Herramientas y comandos
@@ -135,7 +137,7 @@ gtkwave PC_tb.vcd
 
 ### Simular la integración PC + IMEM
 
-Ejemplo para cuando la IMEM y el testbench estén implementados. Ejecutar desde `03_PC_IMEM/`:
+Los módulos compartidos se compilan desde su carpeta original. Ejecutar desde `03_PC_IMEM/`:
 
 ```powershell
 iverilog -o PC_IMEM_tb.vvp ../01_PC/PC.v ../02_IMEM/IMEM.v PC_IMEM_tb.v
@@ -144,21 +146,23 @@ vvp PC_IMEM_tb.vvp
 
 ## Conjunto de instrucciones (ISA)
 
-Fuentes: `docs/Tabla Opcode y Funct.xlsx` —con opcodes ampliados a 6 bits— y la tabla del enunciado de ALUControl.
+Opcodes: `docs/Tabla Opcode y Funct.xlsx`, ampliados a 6 bits. Códigos `funct`: la tabla del enunciado de
+ALUControl (decisión D1). **Los `funct` de la `.xlsx` no se usan**: se contradecían con el enunciado
+(`100010` era SUB en una tabla y DIV en la otra).
 
-> **ISA pendiente de confirmar.** La tabla siguiente conserva los códigos `funct` de la hoja de cálculo. Las entradas con ⚠ tienen discrepancias o decisiones pendientes; consulta [Decisiones pendientes](#decisiones-pendientes) antes de implementarlas.
+| Instrucción | Tipo | Opcode | Funct | `ALUOp` | `alu_control` | Operación |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **ADD** | R | `000000` | `100000` | `10` | `0010` | `$rd = $rs + $rt` |
+| **SUB** | R | `000000` | `100100` | `10` | `0110` | `$rd = $rs - $rt` |
+| **MUL** | R | `000000` | `100001` | `10` | `1000` | `$rd = $rs * $rt` (32 bits bajos) |
+| **DIV** | R | `000000` | `100010` | `10` | `1001` | `$rd = $rs / $rt` (con signo; entre 0 da 0) |
+| **MOV** | R | `000000` | `100011` | `10` | `0001` | `$rd = $rs` |
+| **MOVI** | I | `001010` | — | `00` | `0000` | `$rt = imm` |
+| **ADDI** | I | `001000` | — | `01` | `0010` | `$rt = $rs + imm` |
+| **SUBI** | I | `001001` | — | `11` | `0110` | `$rt = $rs - imm` |
+| **JUMP** | J | `000010` | — | `00` | — | `PC = address` |
 
-| Instrucción | Tipo | Opcode | Funct (`.xlsx`) | Operación | `alu_control` |
-| :--- | :---: | :---: | :---: | :--- | :---: |
-| **ADD** | R | `000000` | `100000` | `$rd = $rs + $rt` | `0010` |
-| **SUB** | R | `000000` | `100010` ⚠ | `$rd = $rs - $rt` | `0110` |
-| **MUL** | R | `000000` | `011000` ⚠ | `$rd = $rs * $rt` | `1000` |
-| **DIV** | R | `000000` | `011010` ⚠ | `$rd = $rs / $rt` | `1001` |
-| **MOV** | R | `000000` | — ⚠ | `$rd = $rs` | `0001` |
-| **MOVI** | I | `001010` | — | `$rt = imm` | `0000` |
-| **ADDI** | I | `001000` | — | `$rt = $rs + imm` | `0010` ⚠ |
-| **SUBI** | I | `001001` | — | `$rt = $rs - imm` | `0110` ⚠ |
-| **JUMP** | J | `000010` | — | `PC = address` | — |
+El inmediato de 16 bits se extiende **con signo** a 32 bits (D7): `movi $2, -3` carga `0xFFFFFFFD`.
 
 ### Formatos de instrucción · 32 bits
 
@@ -170,7 +174,7 @@ Fuentes: `docs/Tabla Opcode y Funct.xlsx` —con opcodes ampliados a 6 bits— y
 
 ### Codificación de `alu_control`
 
-La tabla de ALUControl fija esta codificación. La ALU de la entrega 2 la adopta desde el inicio para evitar cambios en la entrega 3.
+La tabla de ALUControl fija esta codificación y la ALU la usa tal cual.
 
 | `alu_control` | Operación de la ALU | Instrucciones |
 | :---: | :--- | :--- |
@@ -179,41 +183,41 @@ La tabla de ALUControl fija esta codificación. La ALU de la entrega 2 la adopta
 | `0010` | `result = src1 + src2` | ADD, ADDI |
 | `0110` | `result = src1 - src2` | SUB, SUBI |
 | `1000` | `result = src1 * src2` · truncado a 32 bits | MUL |
-| `1001` | `result = src1 / src2` | DIV |
-| Otro | Valor seguro, por ejemplo `0` · **por definir** | — |
+| `1001` | `result = src1 / src2` · con signo; entre cero da `0` | DIV |
+| `1111` y cualquier otro | `result = 0` | Tipo R con `funct` no definido |
 
 ## Hoja de ruta
 
-Cada fase depende de las decisiones de la anterior.
+### Fases 0 a 3 · Módulos
 
-### Fase 0 · Cerrar decisiones de diseño
+- [x] **Fase 0** — Decisiones de diseño cerradas (ver [Decisiones de diseño](#decisiones-de-diseño)) y tabla ISA congelada.
+- [x] **`01_PC`** — Reset síncrono a `0` y carga de `next_pc` en `posedge clk`. 10/10 ciclos OK.
+- [x] **`02_IMEM`** — 16 × 32 bits, programa de 10 instrucciones (5 R, 4 I, 1 J), lectura combinacional. 18/18 lecturas OK.
+- [x] **`03_PC_IMEM`** — PC + IMEM con `next_pc = current_pc + 1`; instrucción y campos en cada ciclo. 10/10 ciclos OK.
+- [x] **`04_ControlUnit`** — Decodificador de opcode con valores por defecto antes del `case`. 12/12 pruebas OK.
+- [x] **`05_ALU`** — Con signo, `/0 → 0`, control no definido → `0`, bandera `zero`. 22/22 pruebas OK.
+- [x] **`06_ALUControl`** — `always @(*)` con valor por defecto y `case` sobre `ALUOp` y `funct`. 16/16 pruebas OK.
+- [x] **`07_RegisterFile`** — 32 × 32 bits, lectura asíncrona, escritura síncrona, `$0` siempre en `0`. 19/19 pruebas OK.
 
-- [ ] Resolver las [inconsistencias detectadas](#decisiones-pendientes), idealmente con el profesor.
-- [ ] Congelar la [tabla ISA](#conjunto-de-instrucciones-isa) como referencia única para IMEM, ControlUnit, ALUControl y ALU.
+### Pendiente para entregar
 
-### Fase 1 · PC e IMEM
+- [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir `02_IMEM` y `06_ALUControl` (solo se ve
+  `vvp`; la de `06` además es de la versión anterior del testbench) y tomar la de `07_RegisterFile`. La de
+  `04_ControlUnit` empieza con un intento fallido (`vvp ControlUnit.vvp`); conviene repetirla o recortarla.
+- [ ] Llenar las tres plantillas `.docx` con el código, las capturas y las tablas de casos de cada README.
+  En la entrega 3, explicar las filas 7, 10 y 11 de la tabla de ALUControl (ver
+  [Diferencias con las plantillas](#diferencias-con-las-plantillas)).
 
-- [x] **`01_PC`** — Reset síncrono a `0` y carga de `next_pc` en `posedge clk`. Testbench con 5 casos mínimos + 1 adicional; resultado reportado: **10/10 OK**. Capturas listas.
-- [ ] **`02_IMEM`** — Memoria de **16 × 32 bits**, programa de 10 instrucciones (≥ 1 R, ≥ 1 I y ≥ 1 J) y lectura combinacional. Testbench que recorra direcciones y separe los campos.
-- [ ] **`03_PC_IMEM`** — Testbench que instancie PC + IMEM, con `next_pc = current_pc + 1`, e imprima la instrucción y sus campos en cada ciclo.
-- [ ] Completar `docs/Entrega_PC_IMEM.docx` con tablas y capturas: **3 de consola + 3 de GTKWave**.
+### Fase 4 · Integración del datapath (siguiente)
 
-### Fase 2 · Unidad de Control y ALU
+Ya comprobado: los seis módulos compilan juntos sin advertencias de `iverilog -Wall`. Una prueba provisional,
+que no está en el repositorio, los conecta con las piezas de [Arquitectura §5.8](docs/Arquitectura.md#s5-8),
+ejecuta el programa de la IMEM y deja en el banco exactamente el estado de [Arquitectura §7](docs/Arquitectura.md#s7).
 
-- [ ] **`04_ControlUnit`** — Decodificador combinacional de opcode, con valores por defecto antes del `case`.
-- [ ] **`05_ALU`** — Suma, resta, multiplicación y división, más bandera `zero`, usando la codificación de `alu_control` acordada.
-- [ ] Crear testbenches que **comparen los resultados contra lo esperado**, además de imprimirlos.
-- [ ] Completar `docs/Entrega_ControlUnit_ALU.docx` con capturas y tablas.
-
-### Fase 3 · ALUControl y Banco de Registros
-
-- [ ] **`06_ALUControl`** — `always @(*)` y `case` sobre `ALUOp` y `funct`.
-- [ ] **`07_RegisterFile`** — **32 × 32 bits**, lectura asíncrona, escritura síncrona y `$0` siempre en `0`.
-- [ ] Preparar testbenches, capturas y tablas; plantilla pendiente.
-
-### Fase 4 · Siguiente práctica
-
-**Fuera del alcance actual:** integrar el datapath monociclo —PC, IMEM, ControlUnit/RegisterFile, ALUControl/ALU y write-back— e incorporar el salto (`Jump`).
+- [ ] Módulo superior (carpeta y nombre por decidir): instancias de los seis módulos con el mismo `clk` y
+  `reset`, más extensión de signo, mux `RegDst`, mux `ALUSrc`, `PC + 1`, mux `Jump` y write-back (`result`).
+- [ ] Testbench del datapath: una línea por ciclo y comprobación del estado final del banco con
+  `uut.<banco>.registers[i]`.
 
 ### Flujo de trabajo por módulo
 
@@ -224,66 +228,32 @@ Cada fase depende de las decisiones de la anterior.
 5. **Inspeccionar en GTKWave**, ajustar formatos (decimal, binario o hexadecimal), aplicar *Zoom Fit* y tomar capturas.
 6. **Documentar** el código, las capturas y las tablas en la plantilla `.docx`.
 
-## Decisiones pendientes
+## Decisiones de diseño
 
-### 1. Códigos `funct` contradictorios
+Todas están cerradas e implementadas. La lista completa, con alternativas y justificación, está en
+[Arquitectura §10](docs/Arquitectura.md#s10).
 
-La hoja de cálculo y el enunciado de ALUControl no coinciden:
+| # | Decisión | Afecta a |
+| :---: | :--- | :--- |
+| D1 | `funct` de la tabla del enunciado de ALUControl, no los de la `.xlsx` | IMEM, ALUControl |
+| D2 | `ALUOp`: `00` MOVI, `01` ADDI, `10` tipo R, `11` SUBI | ControlUnit, ALUControl |
+| D3 | Tabla de control sin `x`: JUMP y opcodes no definidos con `RegWrite = 0` | ControlUnit |
+| D4 | ALU con signo; división entre cero → `0`; control no definido → `0` | ALU |
+| D5 | IMEM indexada con `addr[4:0]`: palabras 10–15 y dirección 16 leen `x` | IMEM |
+| D6 | Direccionamiento por palabra: `next_pc = current_pc + 1` | PC, siguiente PC |
+| D7 | Inmediato con extensión de signo | Datapath |
+| D8 | Salto: `PC = {6'b0, address}` | Datapath |
+| D9 | `alu_control = 1111` significa «no definido» | ALUControl, ALU |
+| D11 | Reset síncrono en el PC y en el banco de registros | PC, RegisterFile |
+| D12 | `$0` protegido en tres niveles (lectura, escritura y valor interno) | RegisterFile |
 
-| Instrucción | Hoja `.xlsx` | Enunciado de ALUControl |
-| :--- | :---: | :---: |
-| ADD | `100000` | `100000` |
-| SUB | `100010` | `100100` |
-| MUL | `011000` | `100001` |
-| DIV | `011010` | `100010` |
-| MOV | — | `100011` |
+### Diferencias con las plantillas
 
-> **Conflicto:** `100010` representa **SUB** en una tabla y **DIV** en la otra.
-
-**Propuesta pendiente de confirmar:** usar los códigos del enunciado de ALUControl, ya que es la tabla contra la que se califica ese módulo e incluye MOV. El programa de la IMEM debe utilizar los mismos códigos. Confirmar con el profesor **antes de armar el programa**.
-
-### 2. `ALUOp` de ADDI y SUBI
-
-El enunciado solo define `ALUOp = 00` para MOVI (`alu_control = 0000`) y `ALUOp = 10` para instrucciones de tipo R. Si ADDI y SUBI usaran `00`, la ALU ejecutaría MOVI.
-
-**Propuesta:** reservar `01` para la suma (ADDI) y `11` para la resta (SUBI). Esta decisión afecta a ControlUnit (entrega 2) y ALUControl (entrega 3).
-
-### 3. Valores no definidos de la Unidad de Control
-
-El enunciado deja algunas señales como «—». Se propone la siguiente tabla, **todavía pendiente de aprobación**:
-
-| Tipo | Opcode | RegDst | ALUSrc | RegWrite | Jump | ALUOp |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| R | `000000` | 1 | 0 | 1 | 0 | `10` |
-| MOVI | `001010` | 0 | 1 | 1 | 0 | `00` |
-| ADDI | `001000` | 0 | 1 | 1 | 0 | `01` |
-| SUBI | `001001` | 0 | 1 | 1 | 0 | `11` |
-| JUMP | `000010` | 0 | 0 | **0** | 1 | `00` |
-| No definido | Otro | 0 | 0 | **0** | **0** | `00` |
-
-**Condiciones clave:** `RegWrite = 0` para JUMP y opcodes no definidos; `Jump = 0` salvo en JUMP.
-
-### 4. Comportamiento de la ALU
-
-Decidir y documentar:
-
-- **Signo de la aritmética:** con o sin signo; se recomienda `$signed` en la división.
-- **División entre cero:** se recomienda devolver `0` para evitar `x`.
-- **Control no definido:** establecer el resultado para valores de `alu_control` no contemplados.
-
-### 5. Indexación de la IMEM
-
-El enunciado usa `addr[4:0]`, pero el arreglo tiene **16 palabras**: las direcciones 16–31 leen `x`. Con `addr[3:0]`, la dirección 16 vuelve a la 0.
-
-**Propuesta:** respetar `addr[4:0]` como pide el enunciado y documentar el caso 8 de la tabla de pruebas: dirección `16` → `x`.
-
-### 6. Incremento del PC
-
-La plantilla fija `next_pc = current_pc + 1`: el direccionamiento es **por palabra**, por lo que el incremento es `+1`, no `+4`.
-
-### 7. Plantilla de la entrega 3
-
-Todavía no hay plantilla `.docx`. Se seguirá el mismo formato de las entregas anteriores.
+| Plantilla | Qué supone | Qué hace el diseño | Dónde se explica |
+| :--- | :--- | :--- | :--- |
+| Entrega 2 · Unidad de Control | Deja celdas en «—» | Valores concretos (D3) | [`04_ControlUnit`](04_ControlUnit/README.md) |
+| Entrega 3 · ALUControl, caso 7 | ADDI «llega con `ALUOp = 00`» | ADDI llega con `01`; con `00` saldría MOVI (prueba 7) | [`06_ALUControl`](06_ALUControl/README.md) |
+| Entrega 3 · ALUControl, casos 10–11 | `ALUOp` `01` y `11` «no definidos» | `01` = ADDI (suma) y `11` = SUBI (resta), D2 | [`06_ALUControl`](06_ALUControl/README.md) |
 
 ## Notas técnicas
 

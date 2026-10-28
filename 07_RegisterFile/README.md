@@ -1,6 +1,7 @@
 # 07 — Banco de Registros (RegisterFile)
 
-**Entrega 3 · Ejercicios 3–4** · Estado: ✅ implementado y verificado (85/85 comprobaciones OK) · capturas pendientes
+**Entrega 3 · Ejercicios 3–4** · Estado: ✅ implementado y verificado (19/19 pruebas OK) · `gtkwave.png` lista,
+`consola.png` pendiente
 
 ## Objetivo
 Guardar los 32 registros de propósito general del procesador (`$0`–`$31`, de 32 bits cada uno). En cada ciclo
@@ -10,7 +11,8 @@ destino. `$0` vale siempre 0.
 | Archivo | Contenido |
 |---|---|
 | `RegisterFile.v` | Módulo `RegisterFile` |
-| `RegisterFile_tb.v` | Testbench `RegisterFile_tb`, con 85 comprobaciones automáticas |
+| `RegisterFile_tb.v` | Testbench `RegisterFile_tb`, con 19 pruebas automáticas en el orden de la plantilla |
+| `RegisterFile_tb.gtkw` | Vista guardada de GTKWave: reloj, control, direcciones y datos en decimal |
 
 ## Puertos
 
@@ -75,15 +77,16 @@ Con cualquiera de los dos primeros bastaría; juntos son redundantes pero no est
 
 ### Antes del primer reset
 Como el reset es síncrono, hasta el primer `posedge clk` con `reset = 1` los registros valen `x` (igual que el
-PC). En ese intervalo, leer `$0` ya devuelve 0; cualquier otro registro devuelve `x`.
+PC). En ese intervalo, leer `$0` ya devuelve 0; cualquier otro registro devuelve `x` (prueba 1 del
+testbench).
 
 ## Interacción con los otros módulos
 
 El banco de registros está en el centro del datapath monociclo: lee los operandos que indica la instrucción,
 se los entrega a la ALU y, al final del ciclo, guarda el resultado. Esa conexión se hará en la integración
 (Fase 4 del README principal, fuera del alcance de esta práctica); por ahora el testbench prueba el módulo
-aislado. Los valores de las señales de control salen de la tabla de la Unidad de Control, que todavía es
-una propuesta (decisión 3 del README principal).
+aislado. Los valores de las señales de control salen de la tabla aprobada de la Unidad de Control
+(decisión 3 del README principal).
 
 ```
                             ┌──────── RegisterFile ────────┐
@@ -143,70 +146,100 @@ destino y `ALUSrc = 1` manda el inmediato `10` a la ALU en lugar de `read_data2`
 
 **Por qué lectura asíncrona y escritura síncrona:** así una instrucción completa cabe en un ciclo. Si una
 instrucción lee y escribe el mismo registro (`add $1, $1, $2`), durante el ciclo se lee el valor anterior y
-el nuevo solo se guarda en el flanco, así que no hay carrera. El caso 6 del testbench lo comprueba.
+el nuevo solo se guarda en el flanco, así que no hay carrera. El caso 10 del testbench lo comprueba.
 
 ## Testbench (`RegisterFile_tb.v`)
 - Reloj de 10 ns (`always #5 clk = ~clk`): flancos de subida en t = 5, 15, 25, … ns.
-- Las entradas cambian en el flanco de bajada, lejos del flanco activo, y se comprueba 1 ns después del
-  flanco de subida, cuando los `<=` ya se asentaron.
+- Las entradas de escritura cambian en el flanco de bajada, lejos del flanco activo, y los registros se
+  imprimen 1 ns después del flanco de subida, cuando los `<=` ya se asentaron.
 - Tareas:
-  - `verificar(obtenido, esperado)`: compara con `!==` (una `x` cuenta como error), lleva la cuenta de
-    pruebas y errores e imprime solo los errores.
-  - `escribir(dir, dato)`: escribe durante un ciclo con `RegWrite = 1` y muestra `R1`, `R2`, `R3` y `R0`
-    mediante acceso jerárquico (`uut.registers[i]`).
-  - `leer_y_verificar(dir1, dir2, esp1, esp2)`: pone las direcciones en los dos puertos, espera 1 ns sin
-    flanco de reloj y verifica ambas salidas.
-- Al final imprime el total de pruebas y de errores.
+  - `ciclo(we, dir, dato)`: un ciclo con `RegWrite = we`. Después del flanco imprime `R1`, `R2`, `R3` y `R0`
+    con el formato del enunciado (`R1=10, R2=20, R3=30, R0=0`) y, al final, el registro destino. Lee el
+    arreglo con el nombre de la instancia: `uut.registers[i]`.
+  - `leer(r1, r2, esp1, esp2, caso)`: pone las direcciones en los dos puertos, espera 1 ns **sin flanco de
+    reloj** y compara las dos salidas con `!==` (una `x` cuenta como error).
+  - `comprobar(valor, esperado, caso)`: compara un valor suelto, por ejemplo `uut.registers[0]`.
+  - `revisar_reset(caso)`: revisa los 32 registros del arreglo después de un reset; cuenta como una prueba.
+- Las pruebas siguen los casos 1–11 de la plantilla, en orden. Cada línea de prueba lleva el tiempo `t`, así
+  se ve qué lecturas ocurren sin flanco de por medio.
+- Al final imprime el total de pruebas y si hubo errores.
 - `$dumpfile("RegisterFile_tb.vcd")` y `$dumpvars(0, RegisterFile_tb)`.
+- **Comprobación del testbench:** con cuatro errores introducidos a propósito en `RegisterFile.v` (permitir
+  escribir en `$0`, reset asíncrono, ignorar `RegWrite`, no forzar `$0` en la lectura) el testbench reporta
+  errores en los cuatro.
 
 ## Casos de prueba (resultados de la simulación)
 
-| # | Caso | Entradas | Esperado | Obtenido | Comprob. | ¿OK? |
-|---|---|---|---|---|:---:|:---:|
-| 1 | Reset inicial: los 32 registros quedan en 0 | `reset = 1` durante un flanco | `$0`–`$31` = 0 | `$0`–`$31` = 0 | 32 | ✅ |
-| 2 | Escritura y lectura por ambos puertos | `$1 ← 10`, `$2 ← 20`, `$3 ← 30` | `$1 = 10`, `$2 = 20`, `$3 = 30` | `$1 = 10`, `$2 = 20`, `$3 = 30` | 6 | ✅ |
-| 3 | Escribir en `$0` no tiene efecto | `$0 ← 999` | `$0 = 0` (puerto y arreglo) | `$0 = 0` | 3 | ✅ |
-| 4 | `RegWrite = 0` no escribe | `write_reg = 2`, `write_data = 777` | `$2 = 20` | `$2 = 20` | 2 | ✅ |
-| 5 | Último registro con los 32 bits | `$31 ← 0xDEADBEEF` | `$31 = 3735928559` | `$31 = 3735928559` | 2 | ✅ |
-| 6 | La escritura espera al flanco ↑ | `$1 ← 99`; leer `$1` antes y después del flanco | `10` → `99` | `10` → `99` | 2 | ✅ |
-| 7 | Lectura asíncrona: cambiar direcciones sin flanco | `(2, 3)` y luego `(1, 31)` | `20, 30` · `99, 0xDEADBEEF` | `20, 30` · `99, 0xDEADBEEF` | 4 | ✅ |
-| 8 | Reset con prioridad sobre `RegWrite` | `reset = 1`, `RegWrite = 1`, `$3 ← 555` | los 32 en 0; `$3 = 0` | los 32 en 0; `$3 = 0` | 34 | ✅ |
-| | **Total** | | | | **85** | **0 errores** |
+Las columnas siguen la tabla de la plantilla. Flancos de subida en t = 5, 15, 25, … ns.
+
+| # | Caso de prueba | Qué se hace (dirección · dato · RegWrite) | Esperado | Obtenido (consola) | ¿OK? |
+|---|---|---|---|---|:---:|
+| 1 | Reset | `reset = 1` durante el flanco de 5 ns; se suelta en 6 ns | Los 32 registros en 0 | 0 de 32 distintos de 0; `R1=0, R2=0, R3=0, R0=0` | ✅ |
+| 2 | Escribir y leer un registro | `$1` · 10 · 1; leer `$1` y `$0` | `10`, `0` | `10`, `0` | ✅ |
+| 3 | Dos registros a la vez | `$2` · 20 · 1 y `$3` · 30 · 1; leer `($2, $3)` y `($3, $3)` | `20, 30` · `30, 30` | `20, 30` · `30, 30` | ✅ |
+| 4 | Intento de escribir en `$0` | `$0` · 999 · 1; leer `$0` por los dos puertos y en el arreglo | `0, 0` y `uut.registers[0] = 0` | `0, 0` y `0` | ✅ |
+| 5 | `RegWrite = 0` | `$2` · 777 · 0; leer `($2, $3)` | `20, 30` (no cambia) | `20, 30` | ✅ |
+| 6 | Lectura asíncrona | Sin flanco (t = 57, 58 y 59 ns): `($2, $3)`, `($1, $2)`, `($3, $1)` | `20, 30` · `10, 20` · `30, 10` | `20, 30` · `10, 20` · `30, 10` | ✅ |
+| 7 | Escritura síncrona | `$4` · 40 · 1 en t = 60 ns; el dato cambia a 44 en t = 62 ns; flanco en 65 ns | `$4 = 0` antes del flanco; `44` después | `0` · `44` | ✅ |
+| 8 | Sobrescribir | `$2` · 200 · 1 (tenía 20) | `$2 = 200` | `200` | ✅ |
+| 9 | Último registro | `$31` · `0xDEADBEEF` · 1 | `3735928559` (`0xDEADBEEF`) | `3735928559` | ✅ |
+| 10 | Leer lo que se está escribiendo | `$1` · 99 · 1, leyendo `$1` | Antes del flanco `10` (viejo); después `99` | `10` · `99` | ✅ |
+| 11 | Reset con datos | `reset = 1` en t = 100 ns, con `$3` · 555 · 1; flanco en 105 ns | En 101 ns los datos siguen (`99`, `3735928559`); en el flanco los 32 pasan a 0 y `$3` no toma 555 | `99`, `3735928559` · 0 de 32 · `$3 = 0` | ✅ |
+| — | Adicional: antes del primer reset | t = 1 ns, sin flanco aún; leer `$0` y `$1` | `0` (protección de `$0`) y `x` | `0`, `x` | ✅ |
+
+**Total: 19 pruebas, 0 errores.** En el caso 11, «cuándo» es la clave: el reset es síncrono, así que
+activarlo no borra nada hasta el siguiente flanco de subida.
 
 ### Salida de la consola
 ```
-=== Pruebas de RegisterFile ===
-Reset inicial: 32 registros comprobados.
-Escritura R1 <- 10 | R1=10 R2=0 R3=0 R0=0
-Lectura: R1=10 | R0=0
-Escritura R2 <- 20 | R1=10 R2=20 R3=0 R0=0
-Lectura: R1=10 | R2=20
-Escritura R3 <- 30 | R1=10 R2=20 R3=30 R0=0
-Lectura: R3=30 | R0=0
-Escritura R0 <- 999 | R1=10 R2=20 R3=30 R0=0
-Lectura: R0=0 | R1=10
-Lectura: R2=20 | R3=30
-Escritura R31 <- 3735928559 | R1=10 R2=20 R3=30 R0=0
-Lectura: R31=3735928559 | R0=0
-Escritura sincronica: R1=99
-Lectura: R2=20 | R3=30
-Lectura: R1=99 | R31=3735928559
-Lectura: R3=0 | R0=0
-=== Fin: pruebas=85, errores=0 ===
-RegisterFile_tb.v:181: $finish called at 87 (1ns)
+=== Testbench RegisterFile ===
+ 1  t=  1 ns  read_reg1=0 -> 0  read_reg2=1 -> x | esperado=0, x  OK     Adicional: antes del reset, $0 lee 0
+ 2  t=  6 ns  registros distintos de 0: 0 de 32 | esperado=0  OK     Caso 1: reset = 1, los 32 en 0
+    t=  6 ns  RegWrite=0 write_reg=0 write_data=0 -> R1=0, R2=0, R3=0, R0=0 | R0=0
+    t= 16 ns  RegWrite=1 write_reg=1 write_data=10 -> R1=10, R2=0, R3=0, R0=0 | R1=10
+ 3  t= 17 ns  read_reg1=1 -> 10  read_reg2=0 -> 0 | esperado=10, 0  OK     Caso 2: escribir y leer $1
+    t= 26 ns  RegWrite=1 write_reg=2 write_data=20 -> R1=10, R2=20, R3=0, R0=0 | R2=20
+    t= 36 ns  RegWrite=1 write_reg=3 write_data=30 -> R1=10, R2=20, R3=30, R0=0 | R3=30
+ 4  t= 37 ns  read_reg1=2 -> 20  read_reg2=3 -> 30 | esperado=20, 30  OK     Caso 3: $2 y $3 a la vez
+ 5  t= 38 ns  read_reg1=3 -> 30  read_reg2=3 -> 30 | esperado=30, 30  OK     Caso 3: $3 por los dos puertos
+    t= 46 ns  RegWrite=1 write_reg=0 write_data=999 -> R1=10, R2=20, R3=30, R0=0 | R0=0
+ 6  t= 47 ns  read_reg1=0 -> 0  read_reg2=0 -> 0 | esperado=0, 0  OK     Caso 4: $0 sigue en 0 (puertos)
+ 7  t= 47 ns  valor=0 | esperado=0  OK     Caso 4: $0 sigue en 0 (arreglo)
+    t= 56 ns  RegWrite=0 write_reg=2 write_data=777 -> R1=10, R2=20, R3=30, R0=0 | R2=20
+ 8  t= 57 ns  read_reg1=2 -> 20  read_reg2=3 -> 30 | esperado=20, 30  OK     Caso 5: RegWrite=0, $2 sigue en 20
+ 9  t= 58 ns  read_reg1=1 -> 10  read_reg2=2 -> 20 | esperado=10, 20  OK     Caso 6: otra direccion, sin flanco
+10  t= 59 ns  read_reg1=3 -> 30  read_reg2=1 -> 10 | esperado=30, 10  OK     Caso 6: otra direccion, sin flanco
+11  t= 61 ns  read_reg1=4 -> 0  read_reg2=0 -> 0 | esperado=0, 0  OK     Caso 7: antes del flanco $4 = 0
+    t= 66 ns  RegWrite=1 write_reg=4 write_data=44 -> R1=10, R2=20, R3=30, R0=0 | R4=44
+12  t= 67 ns  read_reg1=4 -> 44  read_reg2=0 -> 0 | esperado=44, 0  OK     Caso 7: se guarda 44, el dato del flanco
+    t= 76 ns  RegWrite=1 write_reg=2 write_data=200 -> R1=10, R2=200, R3=30, R0=0 | R2=200
+13  t= 77 ns  read_reg1=2 -> 200  read_reg2=1 -> 10 | esperado=200, 10  OK     Caso 8: $2 sobrescrito, 20 -> 200
+    t= 86 ns  RegWrite=1 write_reg=31 write_data=3735928559 -> R1=10, R2=200, R3=30, R0=0 | R31=3735928559
+14  t= 87 ns  read_reg1=31 -> 3735928559  read_reg2=0 -> 0 | esperado=3735928559, 0  OK     Caso 9: $31 = 0xDEADBEEF
+15  t= 91 ns  read_reg1=1 -> 10  read_reg2=2 -> 200 | esperado=10, 200  OK     Caso 10: antes del flanco, $1 viejo
+    t= 96 ns  RegWrite=1 write_reg=1 write_data=99 -> R1=99, R2=200, R3=30, R0=0 | R1=99
+16  t= 97 ns  read_reg1=1 -> 99  read_reg2=2 -> 200 | esperado=99, 200  OK     Caso 10: despues del flanco, $1 nuevo
+17  t=101 ns  read_reg1=1 -> 99  read_reg2=31 -> 3735928559 | esperado=99, 3735928559  OK     Caso 11: reset=1, sin flanco aun
+18  t=106 ns  registros distintos de 0: 0 de 32 | esperado=0  OK     Caso 11: en el flanco, los 32 en 0
+    t=106 ns  RegWrite=1 write_reg=3 write_data=555 -> R1=0, R2=0, R3=0, R0=0 | R3=0
+19  t=107 ns  read_reg1=3 -> 0  read_reg2=31 -> 0 | esperado=0, 0  OK     Caso 11: $3 no tomo 555
+=== 19 pruebas, todas las pruebas OK ===
+RegisterFile_tb.v:244: $finish called at 107000 (1ps)
 ```
 
-## Capturas (`capturas/`, pendientes)
-- `consola.png`: comandos de compilación y ejecución, y la salida completa.
-- `gtkwave.png`: `clk`, `reset`, `RegWrite`, `write_reg`, `write_data`, `read_reg1`, `read_data1`,
-  `read_reg2` y `read_data2` (direcciones en decimal; datos en decimal o hex), con *Zoom Fit*. La simulación
-  dura 87 ns.
+## Capturas
+- `gtkwave.png` (lista): `clk`, `reset`, `RegWrite`, `write_reg`, `write_data`, `read_reg1`, `read_data1`,
+  `read_reg2` y `read_data2`, en decimal, con los 107 ns a la vista. Se ve que `write_data` cambia de 40 a 44
+  entre flancos (caso 7), que las lecturas cambian a mitad de ciclo, sin flanco (57–59 ns), y que
+  `read_data2` vale `x` antes del primer reset.
+- `consola.png` (pendiente): desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`) y la
+  salida completa.
 
 ## Comandos
 ```powershell
 iverilog -o RegisterFile_tb.vvp RegisterFile.v RegisterFile_tb.v
 vvp RegisterFile_tb.vvp
-gtkwave RegisterFile_tb.vcd
+gtkwave RegisterFile_tb.vcd RegisterFile_tb.gtkw    # abre ya las 9 señales; luego View → Zoom Fit
 ```
 
 En la integración, compilar `../07_RegisterFile/RegisterFile.v` desde esta carpeta en lugar de copiarlo

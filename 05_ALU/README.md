@@ -1,7 +1,6 @@
 # 05 — Unidad Aritmético-Lógica (ALU)
 
-**Entrega 2 · Ejercicio 2** · Estado: ✅ implementado y verificado (22/22 pruebas OK) · `gtkwave.png` lista,
-`consola.png` pendiente
+**Entrega 2 · Ejercicio 2** · Estado: ✅ implementado y verificado (22/22 pruebas OK) · capturas listas
 
 ## Objetivo
 Realizar suma, resta, multiplicación y división sobre dos operandos de 32 bits e indicar con `zero` si el
@@ -209,7 +208,7 @@ ALU_tb.v:117: $finish called at 220000 (1ps)
 ```
 
 ## Capturas
-- `consola.png` (pendiente): ejecución con `vvp` y las 22 líneas de prueba.
+- `consola.png` ✅: comandos `iverilog` y `vvp`, y las 22 líneas de prueba.
 - [`gtkwave.png`](gtkwave.png): `ALU_tb.gtkw` abre `alu_control` en binario, `src1`, `src2` y `result` en
   *Signed Decimal* y `zero`, en una ventana de 1900 px para que quepan las 22 pruebas; después, View →
   *Zoom Fit* (0–220 ns). GTKWave une los valores iguales consecutivos, por eso `-2147483648` ocupa las
