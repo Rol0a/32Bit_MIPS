@@ -65,21 +65,21 @@ module PC_IMEM_tb;
             if (!ok) errores = errores + 1;
 
             if (opcode == 6'b000000) begin
-                $display("ciclo %0d  t=%t  R  PC=%0d, Instr=%b_%b_%b_%b_%b_%b    %s  %0s",
+                $display("ciclo %2d  t=%t  R  PC=%2d, Instr=%b_%b_%b_%b_%b_%b    %s  %0s",
                          ciclo, $time, current_pc, opcode, rs, rt, rd, shamt, funct,
                          ok ? "OK   " : "ERROR", caso);
                 $display("                            opcode=%b rs=%b rt=%b rd=%b shamt=%b funct=%b",
                          opcode, rs, rt, rd, shamt, funct);
             end
             else if (opcode == 6'b000010) begin
-                $display("ciclo %0d  t=%t  J  PC=%0d, Instr=%b_%b        %s  %0s",
+                $display("ciclo %2d  t=%t  J  PC=%2d, Instr=%b_%b        %s  %0s",
                          ciclo, $time, current_pc, opcode, address,
                          ok ? "OK   " : "ERROR", caso);
                 $display("                            opcode=%b address=%b (%0d)",
                          opcode, address, address);
             end
             else begin
-                $display("ciclo %0d  t=%t  I  PC=%0d, Instr=%b_%b_%b_%b      %s  %0s",
+                $display("ciclo %2d  t=%t  I  PC=%2d, Instr=%b_%b_%b_%b      %s  %0s",
                          ciclo, $time, current_pc, opcode, rs, rt, immediate,
                          ok ? "OK   " : "ERROR", caso);
                 $display("                            opcode=%b rs=%b rt=%b immediate=%b (%0d)",
@@ -115,27 +115,45 @@ module PC_IMEM_tb;
         @(posedge clk);
         #1 reset = 0;
 
-        // Un ciclo por instrucción del programa (direcciones 0 a 9). Lo
-        // esperado se escribe a mano, igual que en la tabla del README.
-        ciclo_cpu(32'd0, 32'b000000_00001_00010_00011_00000_100000, "add  $3, $1, $2");
-        ciclo_cpu(32'd1, 32'b001000_01000_01001_0000000000001010,   "addi $9, $8, 10");
-        ciclo_cpu(32'd2, 32'b001010_00000_00001_0000000000000111,   "movi $1, 7");
-        ciclo_cpu(32'd3, 32'b001010_00000_00010_1111111111111101,   "movi $2, -3");
-        ciclo_cpu(32'd4, 32'b000000_00001_00010_00100_00000_100100, "sub  $4, $1, $2");
-        ciclo_cpu(32'd5, 32'b000000_00001_00010_00101_00000_100001, "mul  $5, $1, $2");
-        ciclo_cpu(32'd6, 32'b000000_00101_00001_00110_00000_100010, "div  $6, $5, $1");
-        ciclo_cpu(32'd7, 32'b001001_01001_00111_0000000000001111,   "subi $7, $9, 15");
-        ciclo_cpu(32'd8, 32'b000000_00111_00000_01010_00000_100011, "mov  $10, $7");
-        ciclo_cpu(32'd9, 32'b000010_00000000000000000000001001,     "j    9");
+        // Un ciclo por palabra del programa de clase (direcciones 0 a 25) y uno
+        // más en la 26, la primera sin programa. Aquí el PC siempre avanza + 1:
+        // no hay Unidad de Control, así que JUMP 1024 (dirección 21) no salta
+        // y se leen también las instrucciones 23 a 26. Lo esperado se copia a
+        // mano de la tabla de instrucciones de clase.
+        ciclo_cpu(32'd0,  32'b001010_00000_00001_0000000000001111,   "#1  MOVI $1, 15");
+        ciclo_cpu(32'd1,  32'b001010_00000_00010_0000000000010100,   "#2  MOVI $2, 20");
+        ciclo_cpu(32'd2,  32'b001010_00000_00011_0000000000110010,   "#3  MOVI $3, 50");
+        ciclo_cpu(32'd3,  32'b001010_00000_00100_0000000000000101,   "#4  MOVI $4, 5");
+        ciclo_cpu(32'd4,  32'b001010_00000_00101_0000000000000010,   "#5  MOVI $5, 2");
+        ciclo_cpu(32'd5,  32'b000000_00001_00010_00110_00000_100000, "#6  ADD $6, $1, $2");
+        ciclo_cpu(32'd6,  32'b000000_00011_00001_00111_00000_100010, "#7  SUB $7, $3, $1");
+        ciclo_cpu(32'd7,  32'b000000_00010_00011_01000_00000_011000, "#8  MUL $8, $2, $3");
+        ciclo_cpu(32'd8,  32'b000000_00011_00010_01001_00000_011010, "#9  DIV $9, $3, $2");
+        ciclo_cpu(32'd9,  32'b001000_00001_00001_0000000000001010,   "#10 ADDI $1, $1, 10");
+        ciclo_cpu(32'd10, 32'b001001_00010_00010_0000000000000100,   "#11 SUBI $2, $2, 4");
+        ciclo_cpu(32'd11, 32'b000000_00110_00100_01010_00000_100000, "#12 ADD $10, $6, $4");
+        ciclo_cpu(32'd12, 32'b000000_00110_00101_01011_00000_011000, "#13 MUL $11, $6, $5");
+        ciclo_cpu(32'd13, 32'b000000_01010_00101_01100_00000_011010, "#14 DIV $12, $10, $5");
+        ciclo_cpu(32'd14, 32'b001000_00100_00100_0000000000010100,   "#15 ADDI $4, $4, 20");
+        ciclo_cpu(32'd15, 32'b000000_00100_00011_01101_00000_100010, "#16 SUB $13, $4, $3");
+        ciclo_cpu(32'd16, 32'b001010_00000_01110_0000000001100100,   "#17 MOVI $14, 100");
+        ciclo_cpu(32'd17, 32'b000000_01110_00001_01111_00000_100000, "#18 ADD $15, $14, $1");
+        ciclo_cpu(32'd18, 32'b001001_00011_00011_0000000000000101,   "#19 SUBI $3, $3, 5");
+        ciclo_cpu(32'd19, 32'b000000_01111_00010_10000_00000_011000, "#20 MUL $16, $15, $2");
+        ciclo_cpu(32'd20, 32'b001000_00001_10001_0000000000000001,   "#21 ADDI $17, $1, 1");
+        ciclo_cpu(32'd21, 32'b000010_00000000000000010000000000,     "#22 JUMP 1024 (aqui no salta)");
+        ciclo_cpu(32'd22, 32'b000000_10001_00010_10010_00000_100000, "#23 ADD $18, $17, $2");
+        ciclo_cpu(32'd23, 32'b000000_10010_00101_10011_00000_100010, "#24 SUB $19, $18, $5");
+        ciclo_cpu(32'd24, 32'b001010_00000_10100_0000000011111111,   "#25 MOVI $20, 255");
+        ciclo_cpu(32'd25, 32'b001010_00000_00000_0000000011111111,   "#26 MOVI $0, 255");
+        ciclo_cpu(32'd26, 32'd0,                                     "sin programa: lee 0");
 
         if (errores == 0)
             $display("=== %0d ciclos, todas las pruebas OK ===", ciclo);
         else
             $display("=== %0d ciclos, %0d ERRORES ===", ciclo, errores);
 
-        // Se detiene antes del siguiente flanco de subida (t = 105 ns): ahí el
-        // PC pasaría a 10, una palabra sin instrucción que lee x. El salto de
-        // la dirección 9 no se ejecuta: aquí el PC siempre avanza + 1.
+        // Se detiene antes del siguiente flanco de subida (t = 275 ns).
         #4 $finish;
     end
 

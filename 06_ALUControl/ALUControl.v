@@ -13,15 +13,17 @@ module ALUControl (
     output reg [3:0] alu_control     // operación para la ALU
 );
 
-    // Codificación. Las filas 00 y 10 son la tabla del enunciado; 01 y 11 son
-    // decisión del grupo (el enunciado no las define):
+    // Codificación. Los funct de ADD, SUB, MUL y DIV son los de las
+    // instrucciones binarias de clase (coinciden con la tabla .xlsx); MOV
+    // conserva el 100011 de la tabla del enunciado (el programa no lo usa).
+    // Las filas 01 y 11 son decisión del grupo (el enunciado no las define):
     //   ALUOp  funct    instrucción   alu_control
     //   00     x        MOVI          0000   pasa el inmediato
     //   01     x        ADDI          0010   suma
     //   10     100000   ADD           0010
-    //   10     100100   SUB           0110
-    //   10     100001   MULT          1000
-    //   10     100010   DIV           1001
+    //   10     100010   SUB           0110
+    //   10     011000   MULT          1000
+    //   10     011010   DIV           1001
     //   10     100011   MOV           0001
     //   10     otro     no definido   1111   la ALU devuelve 0
     //   11     x        SUBI          0110   resta
@@ -51,12 +53,15 @@ module ALUControl (
             2'b10: begin
                 case (funct)
                     6'b100000: alu_control = 4'b0010;   // ADD
-                    6'b100100: alu_control = 4'b0110;   // SUB
-                    6'b100001: alu_control = 4'b1000;   // MULT
-                    6'b100010: alu_control = 4'b1001;   // DIV
+                    6'b100010: alu_control = 4'b0110;   // SUB
+                    6'b011000: alu_control = 4'b1000;   // MULT
+                    6'b011010: alu_control = 4'b1001;   // DIV
                     6'b100011: alu_control = 4'b0001;   // MOV
 
-                    // funct no definido: se queda el 1111 por defecto.
+                    // funct no definido: se queda el 1111 por defecto. Aquí
+                    // cae también la palabra 0 (funct 000000) que la IMEM
+                    // devuelve fuera del programa: la ALU da 0 y el destino
+                    // es $0, así que no cambia nada (NOP).
                     default: ;
                 endcase
             end

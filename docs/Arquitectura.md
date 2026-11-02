@@ -5,9 +5,9 @@
 > **Documento técnico de referencia de la Práctica 1.** Explica qué hace cada parte del código, **por qué está
 > hecha así** y cómo encaja en la arquitectura completa de un procesador de 32 bits.
 >
-> **Estado descrito:** 28/10/2026, commit `512e942` más la revisión de `06` y `07` contra la plantilla de la
-> entrega 3 y la integración del datapath en `08_MIPS`. Todos los testbenches se volvieron a simular con
-> Icarus Verilog 14.
+> **Estado descrito:** 01/11/2026: la integración del datapath en `08_MIPS` y los cambios para la Entrega Final 1
+> (IMEM de 1024 palabras con las 26 instrucciones de clase, `0` fuera de rango, y `funct` de clase en
+> ALUControl). Todos los testbenches se volvieron a simular con Icarus Verilog 14.
 
 **Cómo leerlo:** las secciones 1 y 2 dan los fundamentos; la 3 define la ISA; la 4 presenta la arquitectura
 completa; la 5 recorre el código módulo por módulo; la 6 explica la temporización; la 7 sigue el programa ciclo a
@@ -57,13 +57,13 @@ principales son:
 | Módulo | Carpeta | Lógica | Estado | Verificación (resimulada) |
 | :--- | :--- | :--- | :---: | :--- |
 | PC | [`01_PC`](../01_PC/) | Secuencial | ✅ | 10 ciclos, 12 comprobaciones, 0 errores |
-| IMEM | [`02_IMEM`](../02_IMEM/) | Combinacional (ROM) | ✅ | 18 lecturas, 0 errores |
-| PC + IMEM | [`03_PC_IMEM`](../03_PC_IMEM/) | Integración | ✅ | 10 ciclos, 0 errores |
+| IMEM | [`02_IMEM`](../02_IMEM/) | Combinacional (ROM) | ✅ | 31 lecturas, 0 errores |
+| PC + IMEM | [`03_PC_IMEM`](../03_PC_IMEM/) | Integración | ✅ | 27 ciclos, 0 errores |
 | ControlUnit | [`04_ControlUnit`](../04_ControlUnit/) | Combinacional | ✅ | 12 pruebas, 0 errores |
 | ALU | [`05_ALU`](../05_ALU/) | Combinacional | ✅ | 22 pruebas, 0 errores |
-| ALUControl | [`06_ALUControl`](../06_ALUControl/) | Combinacional | ✅ | 16 pruebas, 0 errores |
+| ALUControl | [`06_ALUControl`](../06_ALUControl/) | Combinacional | ✅ | 17 pruebas, 0 errores |
 | RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 19 pruebas, 0 errores |
-| MIPS (datapath completo) | [`08_MIPS`](../08_MIPS/) | Integración: 6 instancias + `assign` | ✅ | Reset, 12 ciclos y 32 registros, 0 errores |
+| MIPS (datapath completo) | [`08_MIPS`](../08_MIPS/) | Integración: 6 instancias + `assign` | ✅ | Programa de clase: reset, 26 ciclos y 32 registros, 0 errores |
 
 ---
 
@@ -82,8 +82,8 @@ instrucciones y las direcciones.
 | Palabra de datos | 32 | `write_data`, `read_data1/2`, `result` | Es la unidad natural de cálculo: un `int` de C |
 | Registros | 32 × 32 bits | `reg [31:0] registers [0:31]` | Cada registro guarda una palabra; 32 registros se direccionan con 5 bits |
 | ALU | 32 | `src1`, `src2`, `result` | Opera una palabra completa en un solo paso |
-| Instrucción | 32, longitud fija | `reg [31:0] memory [0:15]` | Una lectura de la IMEM es una instrucción completa |
-| PC (dirección) | 32 | `current_pc`, `next_pc` | Espacio de 2³² direcciones, aunque la IMEM solo implementa 16 |
+| Instrucción | 32, longitud fija | `reg [31:0] memory [0:1023]` | Una lectura de la IMEM es una instrucción completa |
+| PC (dirección) | 32 | `current_pc`, `next_pc` | Espacio de 2³² direcciones, aunque la IMEM solo implementa 1024 |
 | Campos internos | 5 / 6 / 16 / 26 | `rs`, `opcode`, `immediate`, `address` | Reparto de los 32 bits de la instrucción (sección 3.2) |
 
 **Consecuencias aritméticas del ancho fijo:**
@@ -204,7 +204,7 @@ replica el bit 15, el bit de signo, en los 16 bits altos: `{{16{imm[15]}}, imm}`
 | Unidad de dirección | Byte | Palabra de 32 bits |
 | Avance del PC | `PC + 4` | `PC + 1` |
 | Dirección de salto | `{PC+4[31:28], address, 2'b00}` | `address` directa |
-| Índice de la IMEM | `addr[…:2]` (se descartan los 2 bits bajos) | `addr[4:0]` |
+| Índice de la IMEM | `addr[…:2]` (se descartan los 2 bits bajos) | `addr[9:0]`, solo si `addr < 1024` (si no, lee `0`) |
 
 La plantilla fija `siguiente = actual + 1`. Al direccionar por palabra, la dirección **es** el índice del arreglo
 y no hay bits de alineación. La desventaja, no poder acceder a bytes ni medias palabras, no afecta porque no hay
@@ -225,15 +225,16 @@ los inmediatos.
 
 ### 3.1 Las nueve instrucciones
 
-Opcodes de [`Tabla Opcode y Funct.xlsx`](Tabla%20Opcode%20y%20Funct.xlsx); códigos `funct` de la **tabla del
-enunciado de ALUControl** (decisión D1).
+Opcodes y códigos `funct` de las **26 instrucciones binarias de clase** (decisión D1), que coinciden con
+[`Tabla Opcode y Funct.xlsx`](Tabla%20Opcode%20y%20Funct.xlsx). MOV no aparece en esas instrucciones y conserva el
+`funct` de la tabla del enunciado de ALUControl.
 
 | Instrucción | Tipo | Opcode | Funct | Operación | `ALUOp` | `alu_control` |
 | :--- | :---: | :---: | :---: | :--- | :---: | :---: |
 | **ADD** | R | `000000` | `100000` | `$rd = $rs + $rt` | `10` | `0010` |
-| **SUB** | R | `000000` | `100100` | `$rd = $rs − $rt` | `10` | `0110` |
-| **MUL** | R | `000000` | `100001` | `$rd = $rs × $rt` (32 bits bajos) | `10` | `1000` |
-| **DIV** | R | `000000` | `100010` | `$rd = $rs / $rt` (con signo) | `10` | `1001` |
+| **SUB** | R | `000000` | `100010` | `$rd = $rs − $rt` | `10` | `0110` |
+| **MUL** | R | `000000` | `011000` | `$rd = $rs × $rt` (32 bits bajos) | `10` | `1000` |
+| **DIV** | R | `000000` | `011010` | `$rd = $rs / $rt` (con signo) | `10` | `1001` |
 | **MOV** | R | `000000` | `100011` | `$rd = $rs` | `10` | `0001` |
 | **MOVI** | I | `001010` | — | `$rt = signext(imm)` | `00` | `0000` |
 | **ADDI** | I | `001000` | — | `$rt = $rs + signext(imm)` | `01` | `0010` |
@@ -244,13 +245,13 @@ enunciado de ALUControl** (decisión D1).
 
 ```
             31     26 25   21 20   16 15   11 10    6 5      0
- Tipo R    │ opcode  │  rs   │  rt   │  rd   │ shamt │ funct  │     add  $3, $1, $2
+ Tipo R    │ opcode  │  rs   │  rt   │  rd   │ shamt │ funct  │     ADD  $6, $1, $2
            │ 6 bits  │ 5     │ 5     │ 5     │ 5     │ 6      │
             31     26 25   21 20   16 15                     0
- Tipo I    │ opcode  │  rs   │  rt   │      immediate         │     addi $9, $8, 10
+ Tipo I    │ opcode  │  rs   │  rt   │      immediate         │     ADDI $1, $1, 10
            │ 6 bits  │ 5     │ 5     │      16 bits           │
             31     26 25                                     0
- Tipo J    │ opcode  │              address                   │     j 9
+ Tipo J    │ opcode  │              address                   │     JUMP 1024
            │ 6 bits  │              26 bits                   │
 ```
 
@@ -293,35 +294,38 @@ enunciado de ALUControl** (decisión D1).
 
 32 registros de propósito general, `$0` a `$31`. La única convención de hardware es que **`$0` vale siempre 0**.
 No hay convenciones de software (`$sp`, `$ra`, etc.) porque no hay llamadas a subrutinas ni pila. El programa
-usa `$1` a `$10`.
+de clase escribe `$1` a `$17` (y nombra `$18`–`$20` y `$0` en instrucciones que no llegan a ejecutarse).
 
 ### 3.5 Codificar una instrucción paso a paso
 
-**`sub $4, $1, $2`** (tipo R, dirección 4 de la IMEM):
+**`SUB $7, $3, $1`** (instrucción 7 de clase, tipo R, dirección 6 de la IMEM):
 
 | Campo | opcode | rs | rt | rd | shamt | funct |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| Valor | R | `$1` | `$2` | `$4` | — | SUB |
-| Binario | `000000` | `00001` | `00010` | `00100` | `00000` | `100100` |
+| Valor | R | `$3` | `$1` | `$7` | — | SUB |
+| Binario | `000000` | `00011` | `00001` | `00111` | `00000` | `100010` |
 
-`0000 0000 0010 0010 0010 0000 0010 0100` = **`0x00222024`**
+`0000 0000 0110 0001 0011 1000 0010 0010` = **`0x00613822`**
 
-**`movi $2, -3`** (tipo I, dirección 3):
+**`SUBI $2, $2, 4`** (instrucción 11, tipo I, dirección 10):
 
 | Campo | opcode | rs | rt | immediate |
 | :--- | :---: | :---: | :---: | :---: |
-| Valor | MOVI | sin usar | `$2` | −3 |
-| Binario | `001010` | `00000` | `00010` | `1111111111111101` |
+| Valor | SUBI | `$2` | `$2` | 4 |
+| Binario | `001001` | `00010` | `00010` | `0000000000000100` |
 
-`0010 1000 0000 0010 1111 1111 1111 1101` = **`0x2802FFFD`**
+`0010 0100 0100 0010 0000 0000 0000 0100` = **`0x24420004`**
+
+Un inmediato negativo, por ejemplo `−3`, se codifica en complemento a 2 de 16 bits (`1111111111111101`) y la
+extensión de signo lo convierte en `0xFFFFFFFD`. El programa de clase no tiene inmediatos negativos.
 
 ### 3.6 Comparación con MIPS32 real
 
 | Aspecto | MIPS32 real | Este proyecto |
 | :--- | :--- | :--- |
-| `funct` de SUB | `100010` | `100100` (en MIPS real es **AND**) |
-| `funct` de MUL | `mult` = `011000`, escribe en HI/LO | `100001` (en MIPS real es **ADDU**) y escribe en `$rd` |
-| `funct` de DIV | `div` = `011010`, escribe en HI/LO | `100010` (en MIPS real es **SUB**) y escribe en `$rd` |
+| `funct` de SUB | `100010` | `100010`, igual |
+| `funct` de MUL | `mult` = `011000`, escribe en HI/LO | `011000`, pero escribe en `$rd` |
+| `funct` de DIV | `div` = `011010`, escribe en HI/LO | `011010`, pero escribe en `$rd` |
 | MOV | Pseudoinstrucción: `addu $rd, $rs, $zero` | Instrucción R, `funct` `100011` (en MIPS real es **SUBU**) |
 | MOVI | Pseudoinstrucción `li`: `addiu $rt, $zero, imm` | Opcode `001010` (en MIPS real es **SLTI**) |
 | ADDI | `001000`, provoca excepción si hay desbordamiento | `001000`, sin excepción: da la vuelta |
@@ -330,10 +334,12 @@ usa `$1` a `$10`.
 | Direccionamiento | Por byte, `PC + 4` | Por palabra, `PC + 1` |
 | Memoria de datos y saltos condicionales | `lw`, `sw`, `beq`, `bne`, … | No hay |
 
-**Observación importante:** los `funct` de la hoja `.xlsx` (SUB `100010`, MUL `011000`, DIV `011010`) **son los
-de MIPS real**. Los de la tabla de ALUControl son propios del curso. Como el grupo adoptó estos últimos (D1),
-**un ensamblador MIPS estándar (MARS, SPIM) no genera código válido para este procesador**: las instrucciones R
-se codifican a mano, como en la IMEM.
+**Observación importante:** los `funct` de las instrucciones de clase (SUB `100010`, MUL `011000`, DIV `011010`)
+**son los de MIPS real**; los de la tabla del enunciado de ALUControl (SUB `100100`, MUL `100001`, DIV `100010`)
+eran propios del curso y el diseño los usó hasta la Entrega 3. Con D1 actualizada, las R de clase se decodifican
+como en MIPS, salvo que MUL y DIV escriben directamente en `$rd` y no en HI/LO. Aun así, **un ensamblador MIPS
+estándar (MARS, SPIM) no genera código válido para este procesador**: MOVI, SUBI y JUMP tienen otra codificación
+o semántica.
 
 ---
 
@@ -548,65 +554,66 @@ end
 **Código:**
 
 ```verilog
-reg [31:0] memory [0:15];                     // IMEM.v:14 — 16 palabras de 32 bits
-assign instruction = memory[addr[4:0]];       // IMEM.v:20 — lectura combinacional
-initial begin                                 // IMEM.v:29-40 — programa precargado
-    memory[0] = 32'b000000_00001_00010_00011_00000_100000; // R  add  $3, $1, $2
+reg [31:0] memory [0:1023];                   // IMEM.v:15 — 1024 palabras de 32 bits
+assign instruction = (addr < 32'd1024) ? memory[addr[9:0]] : 32'd0;   // IMEM.v:24
+initial begin                                 // IMEM.v:32-62 — programa de clase
+    for (i = 0; i < 1024; i = i + 1)
+        memory[i] = 32'd0;                    // palabras sin programa: 0
+    memory[0]  = 32'b001010_00000_00001_0000000000001111;   //  1  I  MOVI $1, 15
     ...
-    memory[9] = 32'b000010_00000000000000000000001001;     // J  j    9
+    memory[21] = 32'b000010_00000000000000010000000000;     // 22  J  JUMP 1024 (sale de la IMEM)
+    ...
 end
 ```
 
 - **`assign` (lectura combinacional):** la instrucción cambia en cuanto cambia `addr`, sin esperar al reloj. En un
   monociclo es imprescindible: la instrucción tiene que estar disponible **en el mismo ciclo** en que el PC la
   apunta. Con una lectura síncrona llegaría un ciclo tarde, lo que ya sería una etapa de *pipeline*.
-- **`initial`:** carga el programa en `t = 0`. Cada palabra está escrita en binario, con los campos separados por
-  `_` según el formato, y lleva el mnemónico como comentario, tal como pide la plantilla.
-- **`addr[4:0]`:** se indexa con los 5 bits bajos (decisión D5).
+- **`initial`:** pone las 1024 palabras en `0` y carga las 26 instrucciones de clase en `t = 0`. Cada palabra
+  está escrita en binario, con los campos separados por `_` según el formato, y lleva el número y el mnemónico
+  como comentario.
+- **Comprobación de rango (D5):** solo las direcciones 0–1023 existen; fuera de ellas se lee `0`.
 
 **Qué lee cada dirección:**
 
-| `addr` | `addr[4:0]` | Lee | Por qué |
-| :--- | :---: | :--- | :--- |
-| 0–9 | 0–9 | El programa | Palabras escritas en el `initial` |
-| 10–15 | 10–15 | `x` | Dentro del arreglo, pero nunca escritas |
-| 16–31 | 16–31 | `x` | Índice fuera de `memory[0:15]`: Verilog devuelve `x` |
-| 32 | 0 | La instrucción 0 | Los bits altos se ignoran |
+| `addr` | Lee | Por qué |
+| :--- | :--- | :--- |
+| 0–25 | El programa de clase | Palabras escritas en el `initial` |
+| 26–1023 | `0` | Dentro del arreglo, sin programa: el `initial` las pone en 0 |
+| ≥ 1024 | `0` | Fuera de la memoria. Sin la comparación, `addr[9:0]` de 1024 sería 0 y se leería `MOVI $1, 15` |
 
-**El programa** (decisión D13):
+**El programa** (decisión D13): las 26 instrucciones binarias de clase, copiadas sin cambios; la instrucción `#n`
+está en la dirección `n − 1`. La tabla completa, con binario, hex y efecto, está en
+[`02_IMEM/README.md`](../02_IMEM/README.md#programa-precargado-instrucciones-binarias-de-clase).
 
-| Dir | Hex | Mnemónico | Formato | Por qué está ahí |
-| :---: | :---: | :--- | :---: | :--- |
-| 0 | `00221820` | `add $3, $1, $2` | R | La da el enunciado. Tras el reset da `0` |
-| 1 | `2109000A` | `addi $9, $8, 10` | I | La da el enunciado. Carga `$9 = 10` para SUBI |
-| 2 | `28010007` | `movi $1, 7` | I | Operando positivo |
-| 3 | `2802FFFD` | `movi $2, -3` | I | Inmediato negativo: prueba la **extensión de signo** |
-| 4 | `00222024` | `sub $4, $1, $2` | R | Resta de un negativo: `7 − (−3) = 10` |
-| 5 | `00222821` | `mul $5, $1, $2` | R | Producto negativo: `−21` |
-| 6 | `00A13022` | `div $6, $5, $1` | R | **División con signo**: `−21 / 7 = −3` (sin signo daría 613566753) |
-| 7 | `2527000F` | `subi $7, $9, 15` | I | Resultado negativo a partir de positivos: `−5` |
-| 8 | `00E05023` | `mov $10, $7` | R | Copia un negativo |
-| 9 | `08000009` | `j 9` | J | **Salta a sí misma**: detiene el programa y congela los registros |
+| Dir | # | Instrucciones | Qué ejercita |
+| :---: | :---: | :--- | :--- |
+| 0–4 | 1–5 | `MOVI $1`…`$5` con 15, 20, 50, 5, 2 | Carga de inmediatos; dan valor a todos los operandos |
+| 5–8 | 6–9 | `ADD`, `SUB`, `MUL`, `DIV` | Las cuatro R aritméticas, con los `funct` de clase (D1) |
+| 9–10 | 10–11 | `ADDI $1, $1, 10`, `SUBI $2, $2, 4` | I con el mismo registro de fuente y destino; SUBI resta (D2) |
+| 11–20 | 12–21 | R e I que leen registros ya actualizados | Dependencias: `$1 = 25`, `$2 = 16`, `$3 = 45`, `$4 = 25`; un negativo (`$13 = −25`) |
+| 21 | 22 | `JUMP 1024` | Salto a una dirección justo fuera de la memoria (D5) |
+| 22–25 | 23–26 | `ADD $18`, `SUB $19`, `MOVI $20`, `MOVI $0, 255` | No se ejecutan. La última pregunta por la protección de `$0` |
 
 **Decisiones:**
 
 | Decisión | Alternativa | Por qué |
 | :--- | :--- | :--- |
-| **`addr[4:0]`** (D5) | `addr[3:0]`: 16 vuelve a 0 | Lo pide el enunciado. Con `[3:0]` la dirección 16 leería la instrucción 0; el testbench lo detectaría (lectura 16) |
-| **Palabras 10–15 en `x`** | Rellenarlas con `0` | La plantilla pregunta qué leen. La `x` se ve en rojo en GTKWave y delata que el PC salió del programa. Curiosidad: `0x00000000` sería inofensivo aquí (tipo R, `funct` no definido → resultado 0 → se escribe en `$0` → se descarta), igual que `sll $0,$0,0`, que es el `nop` de MIPS real |
-| **Programa en un `initial`** | `$readmemb("prog.mem", memory)` | La plantilla pide el código pegado como texto con los mnemónicos comentados. `$readmemb` separaría el programa del módulo |
-| **Campos sin usar en 0** (D10) | Dejar basura | Una codificación canónica: `shamt = 0` siempre, `rs = 0` en MOVI y `rt = 0` en MOV. Además, los puertos de lectura leen `$0` = 0, un valor conocido |
+| **Fuera de 0–1023 lee `0`** (D5) | Solo `addr[9:0]`: 1024 vuelve a 0 | Con la vuelta, `JUMP 1024` reiniciaría el programa y los valores «finales» dependerían de cuándo se detiene la simulación. Con `0` los registros quedan congelados (mutación 6 de `08_MIPS`) |
+| **Palabras sin programa en `0`** | Dejarlas en `x` | `0x00000000` es inofensivo aquí (tipo R, `funct` no definido → resultado 0 → se escribe en `$0` → se descarta), igual que `sll $0,$0,0`, que es el `nop` de MIPS real. Así una palabra sin programa y una dirección fuera de la memoria se comportan igual. Una `x` también sería segura (la ControlUnit cae en su `default`), pero en hardware no existe |
+| **Programa en un `initial`** | `$readmemb("prog.mem", memory)` | El código queda pegado como texto con los mnemónicos comentados, y los ocho `.v` compilan solos (`iverilog *.v`) sin un archivo extra |
+| **Campos sin usar en 0** (D10) | Dejar basura | Las instrucciones de clase ya vienen así: `shamt = 0` siempre y `rs = 0` en MOVI. Los puertos de lectura leen `$0` = 0, un valor conocido |
 
 **Verificación** ([`IMEM_tb.v`](../02_IMEM/IMEM_tb.v)):
 
 - Declara los campos como `wire` (`opcode = instruction[31:26]`, …) para que aparezcan en GTKWave.
-- `leer(dirección, esperado, caso)` espera 10 ns (lectura combinacional) y compara con `!==`: una `x` esperada solo
-  coincide con una `x` leída.
+- `leer(dirección, esperado, caso)` espera 10 ns (lectura combinacional) y compara con `!==`: una `x` también
+  cuenta como error.
 - Detecta el formato por el opcode (`000000` → R, `000010` → J, el resto → I) e imprime los campos según ese
   formato. El inmediato se muestra con `$signed`.
-- **El esperado se escribe a mano**, no se lee de la memoria: un error de codificación en `IMEM.v` aparece como
-  `ERROR`.
-- **Resultado: 18 lecturas (0–16 y 32), 0 errores.**
+- **El esperado se copia a mano** de la tabla de clase, no se lee de la memoria: un error de copia en `IMEM.v`
+  aparece como `ERROR`.
+- **Resultado: 31 lecturas (0–25, 26, 1023, 1024, 1025 y 2048), 0 errores.**
 
 <a id="s5-3"></a>
 
@@ -636,16 +643,18 @@ IMEM uut_imem (.addr(current_pc), .instruction(instruction));                   
 | 5 ns | Primer flanco ↑ con `reset = 1` → `PC = 0` |
 | 6 ns | Se suelta `reset`, **antes** del siguiente flanco, para que la instrucción 0 dure un ciclo completo |
 | 10 + 10k ns | Flanco ↓: se imprime el ciclo k |
-| 104 ns | `$finish`, antes del flanco de 105 ns que llevaría el PC a 10 (`x`) |
+| 270 ns | Ciclo 26: `PC = 26`, primera palabra sin programa (`0`) |
+| 274 ns | `$finish`, antes del flanco de 275 ns |
 
 **Por qué se imprime en el flanco de bajada:** el PC cambia en el flanco de subida. Medio ciclo después, tanto el
 PC como la salida combinacional de la IMEM están estables, sin carreras con el `<=`.
 
-**El salto no se ejecuta:** aquí `next_pc` siempre vale `PC + 1`, así que `j 9` solo se lee y se decodifica.
-Elegir con `Jump` le toca al datapath de `08_MIPS`, donde `j 9` sí deja el PC fijo en 9.
+**El salto no se ejecuta:** aquí `next_pc` siempre vale `PC + 1`, así que `JUMP 1024` (dirección 21) solo se lee
+y se decodifica, y después se leen también las instrucciones 23–26. Elegir con `Jump` le toca al datapath de
+`08_MIPS`, donde `JUMP 1024` sí saca el PC de la memoria.
 
 **Verificación:** compara el PC y la instrucción de cada ciclo con valores escritos a mano. Se comprobó además
-que con `+4` el testbench marca `ERROR` desde el ciclo 1. **Resultado: 10 ciclos, 0 errores.**
+que con `+4` el testbench marca `ERROR` desde el ciclo 1. **Resultado: 27 ciclos (direcciones 0–26), 0 errores.**
 
 <a id="s5-4"></a>
 
@@ -703,7 +712,7 @@ end
 | :--- | :--- | :--- |
 | **Ninguna salida en `x`** (D3) | Usar `x` como «no importa» en las celdas «—» del enunciado | Con valores concretos, el testbench compara las 5 señales con `!==` y en la Fase 4 no se propagan `x` por los muxes. Una `x` en `RegWrite` o `Jump` podría corromper el estado |
 | **JUMP: `RegWrite = 0`** | Dejarlo indefinido | Un salto no produce un resultado. Si escribiera, guardaría basura en algún registro |
-| **Opcode no definido → `0 0 0 0 00`** | Cualquier otra combinación | Es el estado **seguro**: no escribe ni salta, así que se comporta como un `nop`. Incluye el opcode `x` de las palabras vacías de la IMEM |
+| **Opcode no definido → `0 0 0 0 00`** | Cualquier otra combinación | Es el estado **seguro**: no escribe ni salta, así que se comporta como un `nop`. Incluye el opcode `x` de una palabra de memoria sin inicializar |
 | **`ALUOp`: `01` ADDI, `11` SUBI** (D2) | Usar `00` para todas las I | El enunciado solo define `00` (MOVI) y `10` (R). Con `00`, ADDI y SUBI ejecutarían «pasar `src2`» y devolverían solo el inmediato. Así quedan definidos los 4 valores de `ALUOp` |
 
 **Verificación** ([`ControlUnit_tb.v`](../04_ControlUnit/ControlUnit_tb.v)):
@@ -732,14 +741,14 @@ código de 4 bits que selecciona la operación de la ALU.
 | `00` | cualquiera | MOVI (y JUMP) | `0000` | `result = src2` |
 | `01` | cualquiera | ADDI | `0010` | `src1 + src2` |
 | `10` | `100000` | ADD | `0010` | `src1 + src2` |
-| `10` | `100100` | SUB | `0110` | `src1 − src2` |
-| `10` | `100001` | MUL | `1000` | `src1 × src2` |
-| `10` | `100010` | DIV | `1001` | `src1 / src2` |
+| `10` | `100010` | SUB | `0110` | `src1 − src2` |
+| `10` | `011000` | MUL | `1000` | `src1 × src2` |
+| `10` | `011010` | DIV | `1001` | `src1 / src2` |
 | `10` | `100011` | MOV | `0001` | `result = src1` |
 | `10` | otro | no definido | `1111` | `result = 0` |
 | `11` | cualquiera | SUBI | `0110` | `src1 − src2` |
 
-**Código** ([`ALUControl.v:14-48`](../06_ALUControl/ALUControl.v#L14-L48)):
+**Código** ([`ALUControl.v:33-78`](../06_ALUControl/ALUControl.v#L33-L78)):
 
 ```verilog
 always @(*) begin
@@ -749,9 +758,9 @@ always @(*) begin
         2'b01: alu_control = 4'b0010;                  // ADDI: suma
         2'b10: case (funct)                            // tipo R: decodificar funct
                    6'b100000: alu_control = 4'b0010;   // ADD
-                   6'b100100: alu_control = 4'b0110;   // SUB
-                   6'b100001: alu_control = 4'b1000;   // MUL
-                   6'b100010: alu_control = 4'b1001;   // DIV
+                   6'b100010: alu_control = 4'b0110;   // SUB
+                   6'b011000: alu_control = 4'b1000;   // MUL
+                   6'b011010: alu_control = 4'b1001;   // DIV
                    6'b100011: alu_control = 4'b0001;   // MOV
                    default: ;                          // funct no definido: queda 1111
                endcase
@@ -762,7 +771,7 @@ end
 ```
 
 - **`case` anidado:** `funct` solo se consulta cuando `ALUOp = 10`. En MOVI, ADDI y SUBI, esos 6 bits son la parte
-  baja del **inmediato** y pueden valer cualquier cosa. Por ejemplo, `addi $9, $8, 10` llega con
+  baja del **inmediato** y pueden valer cualquier cosa. Por ejemplo, `ADDI $1, $1, 10` llega con
   `funct = 001010`. Ignorarlos es obligatorio, no opcional.
 - **Sin latches:** `alu_control` recibe `1111` antes del `case`, como pide la plantilla y como hacen la
   ControlUnit y la ALU, así que todo camino le asigna un valor. El `default` externo solo se alcanza con `ALUOp`
@@ -784,19 +793,20 @@ significan `{Ainvert, Bnegate, Operation[1:0]}`:
 
 | Decisión | Alternativa | Por qué |
 | :--- | :--- | :--- |
-| **`funct` del enunciado** (D1) | Los de la `.xlsx` | Las dos tablas se contradecían (`100010` era SUB en una y DIV en la otra). ALUControl se califica contra la tabla del enunciado, que además es la única que incluye MOV. El `funct` de MUL de la `.xlsx` (`011000`) ahora da `1111` (prueba 13) |
+| **`funct` de las instrucciones de clase** (D1) | Los de la tabla del enunciado de ALUControl | Las 26 instrucciones binarias que el procesador debe ejecutar en la Entrega Final traen SUB `100010`, MUL `011000` y DIV `011010` (los de la `.xlsx` y de MIPS real). Con la tabla del enunciado, el `SUB` de clase se habría ejecutado como DIV y MUL/DIV habrían dado `1111` (mutación 7 de `08_MIPS`). MOV, que no aparece en clase, conserva `100011`. Los códigos viejos de SUB y MUL ahora dan `1111` (pruebas 13–14) |
 | **ADDI/SUBI reutilizan `0010`/`0110`** | Códigos propios | A la ALU no le importa si `src2` viene de un registro o del inmediato; eso lo decide el mux `ALUSrc`. Menos códigos significa una ALU más simple |
 | **`1111` para combinaciones no definidas** (D9) | `0000` | `0000` es MOVI, una operación válida, y un error pasaría inadvertido. `1111` no corresponde a ninguna operación y se reconoce a simple vista en GTKWave. La ALU lo convierte en `result = 0` |
 | **MOVI y MOV como «paso»** (`0000`/`0001`) | `$0 + imm` o `$rs + $0` con un ADD | El paso de un operando no depende de que el otro campo valga 0. Es más robusto frente a una codificación descuidada de `rs` o `rt` |
 
 **Consecuencia a tener en cuenta:** una instrucción R con un `funct` no definido **sí escribe** en `$rd`, y lo
 que escribe es `0`. La ControlUnit no ve `funct` y pone `RegWrite = 1`. Evitarlo requeriría una señal de
-«instrucción ilegal», que queda fuera del alcance.
+«instrucción ilegal», que queda fuera del alcance. La palabra `0x00000000` que la IMEM devuelve fuera del programa
+es justo ese caso, con `rd = $0`: por eso es una NOP.
 
 **Verificación** ([`ALUControl_tb.v`](../06_ALUControl/ALUControl_tb.v)): las pruebas 1–11 son los casos 1–11 de
-la plantilla, en orden; las instrucciones I llevan en `funct` los bits bajos de un inmediato real del programa. Las
-pruebas 12–16 añaden `funct` no definidos (todo en 0, el MUL de la `.xlsx`), ADDI/SUBI con el `funct` de otra
-operación y `ALUOp = xx`. **Resultado: 16 pruebas, 0 errores.**
+la plantilla, en orden, con los `funct` de clase; las instrucciones I llevan en `funct` los bits bajos de un
+inmediato real del programa de clase. Las pruebas 12–17 añaden `funct` no definidos (todo en 0, el SUB y el MUL del
+enunciado), ADDI/SUBI con el `funct` de otra operación y `ALUOp = xx`. **Resultado: 17 pruebas, 0 errores.**
 
 > **Diferencia con la plantilla de la entrega 3.** Su caso 7 supone que ADDI llega con `ALUOp = 00` y sus casos
 > 10–11 tratan `01` y `11` como no definidos. Con D2 no es así: la prueba 7 muestra que ADDI con `00` daría
@@ -831,8 +841,8 @@ casos de la plantilla y 10 adicionales, 22 pruebas, 0 errores.
 
 **Por qué estas decisiones:**
 
-- **Con signo:** el programa usa negativos (`movi $2, -3`) y el inmediato se extiende con signo. Una división sin
-  signo daría `−21 / 7 = 613566753`.
+- **Con signo:** el programa de clase produce un negativo (`SUB $13, $4, $3` = −25) y el inmediato se extiende
+  con signo. Una división sin signo daría `−21 / 7 = 613566753`.
 - **División entre cero → 0:** sin protección, Icarus devuelve `x` (comprobado: `7 / 0 = xxxxxxxx`) y la `x`
   llegaría al banco de registros. Con `0`, el comportamiento es determinista y `zero = 1` lo señala.
 - **Control no definido → 0:** mismo razonamiento, y combina con el `1111` de ALUControl.
@@ -962,7 +972,7 @@ módulo propio son pequeñas, pero sin ellas los módulos no forman un procesado
 | Pieza | `assign` en `MIPS.v` | Ancho | Por qué así |
 | :--- | :--- | :---: | :--- |
 | Campos | `opcode`, `rs`, `rt`, `rd`, `funct`, `immediate` y `address` cortados de `instruction` | — | Cada módulo o mux toma el que le corresponde; `shamt` no se usa |
-| Extensión de signo | `imm_ext = {{16{immediate[15]}}, immediate}` | 16 → 32 | D7: coherente con una ALU con signo. `movi $2, -3` exige `0xFFFFFFFD`. En MIPS real, `andi`/`ori` extienden con ceros, pero aquí no hay operaciones lógicas |
+| Extensión de signo | `imm_ext = {{16{immediate[15]}}, immediate}` | 16 → 32 | D7: coherente con una ALU con signo. Un inmediato `-3` debe llegar como `0xFFFFFFFD`. En MIPS real, `andi`/`ori` extienden con ceros, pero aquí no hay operaciones lógicas |
 | Mux `RegDst` | `write_reg = RegDst ? rd : rt` | 5 | El destino está en `rd` (R) o en `rt` (I) |
 | Mux `ALUSrc` | `src2 = ALUSrc ? imm_ext : read_data2` | 32 | El segundo operando es un registro (R) o el inmediato (I) |
 | Sumador | `pc_plus1 = current_pc + 32'd1` | 32 | Direccionamiento por palabra (D6) |
@@ -972,13 +982,15 @@ módulo propio son pequeñas, pero sin ellas los módulos no forman un procesado
 **Interfaz:** entradas `clk` y `reset`; salidas `current_pc`, `instruction` y `alu_result` para observar el
 procesador. `zero` queda en un `wire` interno sin uso, preparado para un futuro `beq`.
 
-**Verificación:** `MIPS_tb` sigue el formato de `03_PC_IMEM`. En el flanco ↓ de cada ciclo compara PC,
-instrucción, las cinco señales de control, `alu_control`, `src1`, `src2`, `result`, `zero`, `write_reg` y
-`next_pc` con la traza de la sección 7; 1 ns después del flanco ↑ comprueba el registro escrito con
-`uut.rf.registers[i]`. Ejecuta 12 ciclos (los 10 del programa y dos más de `j 9`) y al final compara los 32
-registros. Resultado: reset, 12 ciclos y 32 registros sin errores, y cinco mutaciones de conexión detectadas
-(extensión con ceros, `RegDst` o `ALUSrc` invertidos, sin mux `Jump`, banco sin reset). Detalle en
-[`08_MIPS/README.md`](../08_MIPS/README.md).
+**Verificación:** `MIPS_tb` imprime cada instrucción con el formato sugerido por la plantilla de la Entrega
+Final 1 (`PC=… Instr=…`, campos, señales, `rd1`/`rd2`/`ALU` y `$rd<=valor`). En el flanco ↓ de cada ciclo compara
+PC, instrucción, las cinco señales de control, `alu_control`, `read_data1`, `read_data2`, el resultado, `zero`,
+`write_reg` y `next_pc` con la traza de la sección 7; 1 ns después del flanco ↑ comprueba el registro escrito con
+`uut.rf.registers[i]`. Ejecuta 26 ciclos (las 22 instrucciones hasta `JUMP 1024` y cuatro NOPs en PC 1024–1027) y
+al final imprime y compara los 32 registros. Resultado: reset, 26 ciclos y 32 registros sin errores. De siete
+mutaciones (extensión con ceros, `RegDst` o `ALUSrc` invertidos, sin mux `Jump`, banco sin reset, IMEM sin
+comprobación de rango, `funct` del enunciado) detecta seis; la extensión con ceros no se nota porque el programa
+de clase no tiene inmediatos negativos. Detalle en [`08_MIPS/README.md`](../08_MIPS/README.md).
 
 ---
 
@@ -1021,9 +1033,9 @@ se asignan juntos al final del paso de tiempo. Es la regla: **`<=` en lógica se
 
 ### 6.3 Lectura y escritura del mismo registro
 
-`subi $7, $9, 15` lee `$9` y escribe `$7`, pero una instrucción como `add $1, $1, $2` lee y escribe el **mismo**
-registro. Durante el ciclo, la lectura asíncrona entrega el valor viejo de `$1`; la ALU calcula; en el flanco se
-escribe el nuevo valor. La lectura y la escritura nunca se solapan dentro del ciclo, así que no hay carrera. El
+`SUB $7, $3, $1` lee `$3` y `$1` y escribe `$7`, pero `ADDI $1, $1, 10` lee y escribe el **mismo** registro.
+Durante el ciclo, la lectura asíncrona entrega el valor viejo de `$1` (15); la ALU calcula; en el flanco se escribe
+el nuevo valor (25). La lectura y la escritura nunca se solapan dentro del ciclo, así que no hay carrera. El
 caso 10 del testbench del banco lo comprueba: antes del flanco se lee `10` y después, `99`.
 
 ### 6.4 Reset y estado inicial
@@ -1036,7 +1048,7 @@ caso 10 del testbench del banco lo comprueba: antes del flanco se lee `10` y des
   inicial (se ve en rojo en la captura de `08_MIPS`). Lo que protege el banco es que **su reset tiene prioridad
   sobre `RegWrite`**: en ese primer flanco `reset = 1`. **No hay escrituras espurias**; `MIPS_tb` lo comprueba
   a los 6 ns (PC y los 32 registros en 0). La ControlUnit sí cae en `default` cuando el `opcode` *cambia* a `x`,
-  por ejemplo si el PC llega a una palabra vacía de la IMEM.
+  por ejemplo si el PC llegara a una palabra sin inicializar (la IMEM actual las pone en 0).
 - Hay que soltar el reset después del primer flanco y antes del siguiente, para que la instrucción 0 se ejecute un
   ciclo completo.
 
@@ -1069,43 +1081,71 @@ no se usa en procesadores reales y por qué existen los diseños multiciclo y se
 
 ## 7. Ejecución completa del programa
 
-Esto es lo que hace el datapath ([`08_MIPS`](../08_MIPS/)) con el programa de la IMEM. Se calculó a mano y se
-**comprueba en simulación**: estos son los valores esperados de `MIPS_tb`, que los compara ciclo a ciclo y
-registro a registro (0 errores).
+Esto es lo que hace el datapath ([`08_MIPS`](../08_MIPS/)) con las **26 instrucciones binarias de clase**
+(Entrega Final 1). Se calculó a mano y se **comprueba en simulación**: estos son los valores esperados de
+`MIPS_tb`, que los compara ciclo a ciclo y registro a registro (0 errores).
 
 Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro destino se escribe en el flanco que
-**termina** el ciclo.
+**termina** el ciclo. En las I, `src2` es el inmediato.
 
-| Ciclo | PC | Instrucción | Señales | `alu_control` | `src1` | `src2` | `result` | `zero` | Escritura | `next_pc` |
-| :---: | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- | :---: |
-| 0 | 0 | `add $3, $1, $2` | `1 0 1 0 10` | `0010` | `$1` = 0 | `$2` = 0 | 0 | 1 | `$3 ← 0` | 1 |
-| 1 | 1 | `addi $9, $8, 10` | `0 1 1 0 01` | `0010` | `$8` = 0 | imm = 10 | 10 | 0 | `$9 ← 10` | 2 |
-| 2 | 2 | `movi $1, 7` | `0 1 1 0 00` | `0000` | `$0` = 0 | imm = 7 | 7 | 0 | `$1 ← 7` | 3 |
-| 3 | 3 | `movi $2, -3` | `0 1 1 0 00` | `0000` | `$0` = 0 | imm = −3 | −3 | 0 | `$2 ← −3` | 4 |
-| 4 | 4 | `sub $4, $1, $2` | `1 0 1 0 10` | `0110` | 7 | −3 | 10 | 0 | `$4 ← 10` | 5 |
-| 5 | 5 | `mul $5, $1, $2` | `1 0 1 0 10` | `1000` | 7 | −3 | −21 | 0 | `$5 ← −21` | 6 |
-| 6 | 6 | `div $6, $5, $1` | `1 0 1 0 10` | `1001` | −21 | 7 | −3 | 0 | `$6 ← −3` | 7 |
-| 7 | 7 | `subi $7, $9, 15` | `0 1 1 0 11` | `0110` | 10 | imm = 15 | −5 | 0 | `$7 ← −5` | 8 |
-| 8 | 8 | `mov $10, $7` | `1 0 1 0 10` | `0001` | −5 | `$0` = 0 | −5 | 0 | `$10 ← −5` | 9 |
-| 9 | 9 | `j 9` | `0 0 0 1 00` | `0000` | `$0` = 0 | `$0` = 0 | 0 | 1 | — (`RegWrite = 0`) | **9** |
-| 10, 11, … | 9 | `j 9` | `0 0 0 1 00` | `0000` | 0 | 0 | 0 | 1 | — | 9 |
+| Ciclo | PC | # | Instrucción | Señales | `alu_control` | `src1` | `src2` | `result` | Escritura | `next_pc` |
+| :---: | :---: | :---: | :--- | :---: | :---: | ---: | ---: | ---: | :--- | :---: |
+| 0 | 0 | 1 | `MOVI $1, 15` | `0 1 1 0 00` | `0000` | `$0` = 0 | 15 | 15 | `$1 ← 15` | 1 |
+| 1 | 1 | 2 | `MOVI $2, 20` | `0 1 1 0 00` | `0000` | `$0` = 0 | 20 | 20 | `$2 ← 20` | 2 |
+| 2 | 2 | 3 | `MOVI $3, 50` | `0 1 1 0 00` | `0000` | `$0` = 0 | 50 | 50 | `$3 ← 50` | 3 |
+| 3 | 3 | 4 | `MOVI $4, 5` | `0 1 1 0 00` | `0000` | `$0` = 0 | 5 | 5 | `$4 ← 5` | 4 |
+| 4 | 4 | 5 | `MOVI $5, 2` | `0 1 1 0 00` | `0000` | `$0` = 0 | 2 | 2 | `$5 ← 2` | 5 |
+| 5 | 5 | 6 | `ADD $6, $1, $2` | `1 0 1 0 10` | `0010` | 15 | 20 | 35 | `$6 ← 35` | 6 |
+| 6 | 6 | 7 | `SUB $7, $3, $1` | `1 0 1 0 10` | `0110` | 50 | 15 | 35 | `$7 ← 35` | 7 |
+| 7 | 7 | 8 | `MUL $8, $2, $3` | `1 0 1 0 10` | `1000` | 20 | 50 | 1000 | `$8 ← 1000` | 8 |
+| 8 | 8 | 9 | `DIV $9, $3, $2` | `1 0 1 0 10` | `1001` | 50 | 20 | 2 | `$9 ← 2` | 9 |
+| 9 | 9 | 10 | `ADDI $1, $1, 10` | `0 1 1 0 01` | `0010` | 15 | 10 | 25 | `$1 ← 25` | 10 |
+| 10 | 10 | 11 | `SUBI $2, $2, 4` | `0 1 1 0 11` | `0110` | 20 | 4 | 16 | `$2 ← 16` | 11 |
+| 11 | 11 | 12 | `ADD $10, $6, $4` | `1 0 1 0 10` | `0010` | 35 | 5 | 40 | `$10 ← 40` | 12 |
+| 12 | 12 | 13 | `MUL $11, $6, $5` | `1 0 1 0 10` | `1000` | 35 | 2 | 70 | `$11 ← 70` | 13 |
+| 13 | 13 | 14 | `DIV $12, $10, $5` | `1 0 1 0 10` | `1001` | 40 | 2 | 20 | `$12 ← 20` | 14 |
+| 14 | 14 | 15 | `ADDI $4, $4, 20` | `0 1 1 0 01` | `0010` | 5 | 20 | 25 | `$4 ← 25` | 15 |
+| 15 | 15 | 16 | `SUB $13, $4, $3` | `1 0 1 0 10` | `0110` | 25 | 50 | −25 | `$13 ← −25` | 16 |
+| 16 | 16 | 17 | `MOVI $14, 100` | `0 1 1 0 00` | `0000` | `$0` = 0 | 100 | 100 | `$14 ← 100` | 17 |
+| 17 | 17 | 18 | `ADD $15, $14, $1` | `1 0 1 0 10` | `0010` | 100 | 25 | 125 | `$15 ← 125` | 18 |
+| 18 | 18 | 19 | `SUBI $3, $3, 5` | `0 1 1 0 11` | `0110` | 50 | 5 | 45 | `$3 ← 45` | 19 |
+| 19 | 19 | 20 | `MUL $16, $15, $2` | `1 0 1 0 10` | `1000` | 125 | 16 | 2000 | `$16 ← 2000` | 20 |
+| 20 | 20 | 21 | `ADDI $17, $1, 1` | `0 1 1 0 01` | `0010` | 25 | 1 | 26 | `$17 ← 26` | 21 |
+| 21 | 21 | 22 | `JUMP 1024` | `0 0 0 1 00` | `0000` | `$0` = 0 | `$0` = 0 | 0 | — (`RegWrite = 0`) | **1024** |
+| 22, 23, … | 1024, 1025, … | — | NOP (palabra `0`) | `1 0 1 0 10` | `1111` | `$0` = 0 | `$0` = 0 | 0 | — (destino `$0`) | PC + 1 |
 
-**Estado final del banco** (estable desde el ciclo 9):
+Las instrucciones 23–26 (`ADD $18`, `SUB $19`, `MOVI $20`, `MOVI $0`) están en las direcciones 22–25 pero **no se
+ejecutan**: `JUMP 1024` lleva el PC fuera de la memoria, donde solo se leen NOPs.
 
-| Registro | `$0` | `$1` | `$2` | `$3` | `$4` | `$5` | `$6` | `$7` | `$8` | `$9` | `$10` | `$11`–`$31` |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Decimal | 0 | 7 | −3 | 0 | 10 | −21 | −3 | −5 | 0 | 10 | −5 | 0 |
-| Hex | `00000000` | `00000007` | `FFFFFFFD` | `00000000` | `0000000A` | `FFFFFFEB` | `FFFFFFFD` | `FFFFFFFB` | `00000000` | `0000000A` | `FFFFFFFB` | `00000000` |
+**Estado final del banco** (estable desde el ciclo 21):
+
+| Registro | `$0` | `$1` | `$2` | `$3` | `$4` | `$5` | `$6` | `$7` | `$8` | `$9` | `$10` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Decimal | 0 | 25 | 16 | 45 | 25 | 2 | 35 | 35 | 1000 | 2 | 40 |
+| Hex | `00000000` | `00000019` | `00000010` | `0000002D` | `00000019` | `00000002` | `00000023` | `00000023` | `000003E8` | `00000002` | `00000028` |
+
+| Registro | `$11` | `$12` | `$13` | `$14` | `$15` | `$16` | `$17` | `$18` | `$19` | `$20` | `$21`–`$31` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Decimal | 70 | 20 | −25 | 100 | 125 | 2000 | 26 | 0 | 0 | 0 | 0 |
+| Hex | `00000046` | `00000014` | `FFFFFFE7` | `00000064` | `0000007D` | `000007D0` | `0000001A` | `00000000` | `00000000` | `00000000` | `00000000` |
 
 **Observaciones:**
 
-- En el ciclo 0, `$1` y `$2` todavía valen 0 por el reset; reciben su valor en los ciclos 2 y 3. Por eso `$3` da 0.
-- Los campos sin usar codificados en 0 hacen que MOVI lea `$0` por `rs` y MOV lea `$0` por `rt`. Esos valores se
-  descartan en el mux `ALUSrc` o en la ALU.
-- En `j 9`, la ALU calcula algo (`0000` → `src2 = 0`) que nadie usa: `RegWrite = 0` protege el banco. La ALU
+- **Dependencias:** `ADDI $1, $1, 10`, `SUBI $2, $2, 4`, `ADDI $4, $4, 20` y `SUBI $3, $3, 5` sobrescriben
+  operandos ya usados. Las instrucciones posteriores leen el valor **nuevo**: `ADD $15, $14, $1` usa `$1 = 25`,
+  `SUB $13, $4, $3` usa `$4 = 25` y `$3 = 50` (todavía no se ejecutó `SUBI $3`), y `MUL $16, $15, $2` usa
+  `$2 = 16`.
+- **Divisiones enteras:** `50 / 20 = 2`; el resto se descarta.
+- **El único negativo** es `$13 = 25 − 50 = −25` (`0xFFFFFFE7`). Todos los inmediatos son positivos, así que este
+  programa no ejercita la extensión de signo (mutación 1 de `08_MIPS`).
+- En `JUMP 1024`, la ALU calcula algo (`0000` → `src2 = 0`) que nadie usa: `RegWrite = 0` protege el banco. La ALU
   **siempre** calcula; las señales de control deciden si el resultado importa.
-- `j 9` mantiene el PC en 9 para siempre: el procesador queda «detenido» y el estado final se puede inspeccionar
-  con calma.
+- Tras el salto, la NOP sí tiene `RegWrite = 1`, pero su destino es `$0`, que el banco no escribe. El PC sigue
+  avanzando (1025, 1026, …) y los registros quedan congelados: el estado final se puede leer en cualquier momento
+  después del ciclo 21. Es lo que necesita la Entrega Final 2, donde con `Run = 1` se leen los registros mientras
+  el reloj sigue corriendo.
+- **`MOVI $0, 255`** no llega a ejecutarse. Si se ejecutara (mutación 4 de `08_MIPS`, sin mux `Jump`), `$0`
+  seguiría en 0 por la protección del banco (D12).
 
 ---
 
@@ -1122,7 +1162,7 @@ Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro 
 | **Comparación de cuatro estados** | `!==` para contar errores y `===` para el `OK` | Con `!=`, una `x` daría «desconocido» y no contaría como error. Con `!==` sí cuenta, y una `x` esperada solo coincide con una `x` real |
 | **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `ciclo`, `comprobar`, `revisar_reset`, `revisar_banco` | Cada caso es una línea legible y el formato de salida es uniforme |
 | **Casos de borde** | Opcode `x`, direcciones fuera de rango, `0xFFFFFFFF`, `$0`, `$31`, reset con prioridad, cambios entre flancos | Los errores viven en los bordes |
-| **Pruebas de mutación** | Copias defectuosas del módulo (sin el valor por defecto de `Jump`, `ALUOp` cambiado, PC `+4`, `addr[3:0]`; en el datapath, extensión con ceros, muxes invertidos, sin mux `Jump`, banco sin reset) | Demuestran que el testbench **detecta** los errores que pretende prevenir |
+| **Pruebas de mutación** | Copias defectuosas del módulo (sin el valor por defecto de `Jump`, `ALUOp` cambiado, PC `+4`; en el datapath, extensión con ceros, muxes invertidos, sin mux `Jump`, banco sin reset, IMEM sin comprobación de rango, `funct` del enunciado) | Demuestran que el testbench **detecta** los errores que pretende prevenir, y también qué no detecta (la extensión con ceros, con el programa de clase) |
 | **Ondas** | `$dumpfile`/`$dumpvars(0, tb)` y vistas guardadas `.gtkw` | La plantilla pide capturas; el `.gtkw` fija las señales y sus formatos |
 
 ### 8.2 Resumen de resultados (resimulados)
@@ -1130,13 +1170,13 @@ Señales en el orden RegDst · ALUSrc · RegWrite · Jump · ALUOp. El registro 
 | Testbench | Tipo de estímulo | Comprobaciones | Duración | Resultado |
 | :--- | :--- | :---: | :---: | :---: |
 | `PC_tb` | Reloj; entradas en flanco ↓ | 12 (10 ciclos) | 100 ns | ✅ 0 errores |
-| `IMEM_tb` | Dirección cada 10 ns | 18 | 180 ns | ✅ |
-| `PC_IMEM_tb` | Reloj; el PC avanza solo | 10 | 104 ns | ✅ |
+| `IMEM_tb` | Dirección cada 10 ns | 31 | 310 ns | ✅ |
+| `PC_IMEM_tb` | Reloj; el PC avanza solo | 27 | 274 ns | ✅ |
 | `ControlUnit_tb` | Opcode cada 10 ns | 12 | 120 ns | ✅ |
-| `ALUControl_tb` | `ALUOp`/`funct` cada 10 ns | 16 | 160 ns | ✅ |
+| `ALUControl_tb` | `ALUOp`/`funct` cada 10 ns | 17 | 170 ns | ✅ |
 | `RegisterFile_tb` | Reloj; entradas en flanco ↓; acceso jerárquico | 19 | 107 ns | ✅ |
 | `ALU_tb` | Control y operandos cada 10 ns | 22 | 220 ns | ✅ |
-| `MIPS_tb` | Reloj; el procesador ejecuta el programa solo; acceso jerárquico | Reset + 12 ciclos + 32 registros | 130 ns | ✅ |
+| `MIPS_tb` | Reloj; el procesador ejecuta el programa de clase solo; acceso jerárquico | Reset + 26 ciclos + 32 registros | 270 ns | ✅ |
 
 ### 8.3 Comandos
 
@@ -1161,6 +1201,10 @@ Procesador completo (desde `08_MIPS/`):
 iverilog -Wall -o MIPS_tb.vvp ../01_PC/PC.v ../02_IMEM/IMEM.v ../04_ControlUnit/ControlUnit.v ../05_ALU/ALU.v ../06_ALUControl/ALUControl.v ../07_RegisterFile/RegisterFile.v MIPS.v MIPS_tb.v
 vvp MIPS_tb.vvp
 ```
+
+Para la entrega, con los ocho `.v` (seis módulos, `MIPS.v` y `MIPS_tb.v`) en una sola carpeta, como sugiere la
+plantilla: `iverilog -o salida.vvp *.v` y `vvp salida.vvp`. Compila igual porque el programa está dentro de
+`IMEM.v` y no en un archivo aparte.
 
 ---
 
@@ -1194,19 +1238,19 @@ vvp MIPS_tb.vvp
 
 | # | Decisión | Alternativas descartadas | Justificación | Afecta a |
 | :---: | :--- | :--- | :--- | :--- |
-| D1 | `funct` de la **tabla de ALUControl** (ADD `100000`, SUB `100100`, MUL `100001`, DIV `100010`, MOV `100011`) | `funct` de la `.xlsx` (los de MIPS real) | Las tablas se contradecían; ALUControl se califica contra el enunciado, que es el único que incluye MOV | IMEM, ALUControl |
+| D1 | `funct` de las **instrucciones binarias de clase** (ADD `100000`, SUB `100010`, MUL `011000`, DIV `011010`; coinciden con la `.xlsx`); MOV conserva `100011` del enunciado | La tabla del enunciado de ALUControl (SUB `100100`, MUL `100001`, DIV `100010`), usada hasta la Entrega 3 | El procesador debe ejecutar las instrucciones de clase tal como vienen; con la tabla del enunciado, `SUB` se ejecutaría como DIV | IMEM, ALUControl |
 | D2 | `ALUOp`: `00` MOVI, `01` ADDI, `10` R, `11` SUBI | `00` para todas las I | Con `00`, ADDI y SUBI harían MOVI; así se definen los 4 valores | ControlUnit, ALUControl |
 | D3 | Tabla de control sin `x`; JUMP y opcodes no definidos con `RegWrite = 0` | `x` como «no importa» | El testbench puede usar `!==`; no se propagan `x`; los opcodes inválidos son un `nop` | ControlUnit |
-| D4 | ALU con signo; `/0 → 0`; control no definido → 0 | Sin signo; `/0 → x` | El programa usa negativos; evita `x` en el banco | ALU |
-| D5 | IMEM indexada con `addr[4:0]`; palabras 10–15 en `x` | `addr[3:0]`; rellenar con `0` | Lo pide el enunciado; la `x` delata que el PC salió del programa | IMEM |
+| D4 | ALU con signo; `/0 → 0`; control no definido → 0 | Sin signo; `/0 → x` | Hay resultados negativos (`$13 = −25`); evita `x` en el banco | ALU |
+| D5 | IMEM de 1024 palabras (`addr[9:0]`); palabras sin programa en `0` y fuera de 0–1023 lee `0` | Solo `addr[9:0]` (1024 vuelve a 0); palabras en `x` | La plantilla final pide 1024 palabras. Con `0` (NOP), tras `JUMP 1024` los registros quedan congelados; con la vuelta, el programa se reiniciaría | IMEM |
 | D6 | Direccionamiento por palabra: `PC + 1` | Por byte: `PC + 4` | Lo fija la plantilla; la dirección es el índice del arreglo | PC, IMEM, siguiente PC |
-| D7 | Inmediato con **extensión de signo** | Extensión con ceros | Coherente con la ALU con signo; `movi $2, -3` | Extensión de signo, programa |
+| D7 | Inmediato con **extensión de signo** | Extensión con ceros | Coherente con la ALU con signo; lo pide la plantilla final | Extensión de signo |
 | D8 | Salto: `PC = {6'b0, address}` (palabra directa) | Pseudodirecto `{PC[31:26], address}` | Más simple; equivalente para cualquier programa que quepa en la IMEM | Mux `Jump` |
 | D9 | `alu_control = 1111` = no definido | `0000` | `0000` es MOVI; `1111` se distingue a simple vista | ALUControl, ALU |
-| D10 | Campos sin usar codificados en `0` | Valores arbitrarios | Codificación canónica; las lecturas sobrantes dan `$0` = 0 | Programa |
+| D10 | Campos sin usar codificados en `0` | Valores arbitrarios | Codificación canónica (las instrucciones de clase ya la siguen); las lecturas sobrantes dan `$0` = 0 | Programa |
 | D11 | Reset **síncrono** en el PC y el banco; el banco reinicia los 32 registros | Reset asíncrono; banco sin reset | Plantilla; un solo flanco reinicia todo; arranque determinista | PC, RegisterFile |
 | D12 | `$0` protegido en tres niveles | Uno solo | Defensa en profundidad, sin costo funcional | RegisterFile |
-| D13 | Programa: las 9 instrucciones, con negativos, y fin en `j 9` | Programa mínimo | Prueba todo el datapath en la Fase 4 y congela el estado final | IMEM |
+| D13 | Programa: las 26 instrucciones binarias de clase, sin cambios | El programa de prueba propio (10 instrucciones, fin en `j 9`), usado hasta la Entrega 3 | Lo exige la Entrega Final 1 | IMEM |
 | D14 | Lecturas combinacionales (IMEM y banco) | Lecturas síncronas | Imprescindibles para ejecutar una instrucción por ciclo | IMEM, RegisterFile |
 | D15 | Módulos compartidos compilados desde su carpeta, sin copias | Copiar los `.v` | Una sola fuente de verdad | Integraciones |
 
@@ -1223,11 +1267,14 @@ vvp MIPS_tb.vvp
 | 1 · PC e IMEM | PC, IMEM, PC + IMEM | ✅ | ✅ | `consola.png` y `gtkwave.png` en las tres carpetas | Por completar |
 | 2 · Control y ALU | ControlUnit, ALU | ✅ | ✅ | `consola.png` y `gtkwave.png` en las dos carpetas | Por completar |
 | 3 · ALUControl y banco | ALUControl, RegisterFile | ✅ | ✅ | `gtkwave.png` en las dos; `consola.png`: repetir la de ALUControl, falta la del banco | Por completar |
-| Fase 4 · Datapath | MIPS (`08_MIPS`) | ✅ | ✅ | `gtkwave.png`; falta `consola.png` | — |
+| Final 1 · Procesador | MIPS (`08_MIPS`) con las 26 instrucciones de clase | ✅ | ✅ | `gtkwave.png`; faltan `consola.png` y la foto del CMD | Por completar |
+| Final 2 · NanoBoard | — | — | — | — | Pendiente |
 
-**Datapath integrado** en [`08_MIPS`](../08_MIPS/) (sección 5.8): compila sin advertencias de `iverilog -Wall`,
-reproduce la traza y el estado final de la sección 7 y detecta las cinco mutaciones de conexión probadas.
-**Siguiente paso:** las capturas de consola pendientes y las plantillas `.docx`.
+**Procesador completo** en [`08_MIPS`](../08_MIPS/) (sección 5.8): compila sin advertencias de `iverilog -Wall`,
+ejecuta las 26 instrucciones de clase, reproduce la traza y el estado final de la sección 7 y detecta seis de las
+siete mutaciones probadas. Para la Entrega Final 1 cambiaron la IMEM (1024 palabras, programa de clase, `0` fuera
+de rango) y los `funct` de ALUControl; las capturas de `02`, `03` y `06` deben repetirse.
+**Siguiente paso:** las capturas de consola, la foto del CMD y la plantilla de la Entrega Final 1.
 
 ### 11.2 Inconsistencias detectadas
 
@@ -1246,23 +1293,27 @@ revisión del 28/10/2026):
 | 8 ✅ | [`05_ALU/README.md`](../05_ALU/README.md) | Presenta signo, `/0` y control no definido como «propuesta»; ya están decididos (D4) y otros READMEs los dan por hechos | Bajo |
 | 9 ✅ | Estilo de `06` y `07` | `` `timescale 1ns/1ns ``, sin cabecera de archivo, comentarios sin tildes y otro formato de línea de resumen, frente al estilo de `01`–`04` | Cosmético: en el `.docx` se nota la diferencia |
 | 10 ✅ | `07_RegisterFile` | No tenía `.gtkw` ni capturas; ya tiene `.gtkw` y `gtkwave.png` | Falta `consola.png` |
-| 11 | `consola.png` de `02_IMEM` y `06_ALUControl` | Solo muestran `vvp`; la plantilla pide ver también `iverilog`. La de `06` es de la versión anterior del testbench | Hay que repetirlas |
+| 11 | `consola.png` de `02_IMEM`, `03_PC_IMEM` y `06_ALUControl` | Son del programa y los `funct` anteriores a la Entrega Final; las de `02` y `06` además solo muestran `vvp` | Hay que repetirlas |
 | 12 | `consola.png` de `04_ControlUnit` | Empieza con un intento fallido (`vvp ControlUnit.vvp: Unable to open input file`) | Cosmético: repetir o recortar |
 
 ### 11.3 Riesgo técnico para la integración
 
-Los tres riesgos previstos antes de integrar están cubiertos: `MIPS_tb` falla con cada uno (mutaciones 1, 2 y 5
-de [`08_MIPS`](../08_MIPS/README.md)).
+De los tres riesgos previstos antes de integrar, `MIPS_tb` detecta dos con el programa de clase (mutaciones 2 y 5
+de [`08_MIPS`](../08_MIPS/README.md)); el tercero solo lo detectaba el programa anterior.
 
-- **Extensión de signo:** si se extiende con ceros, `movi $2, -3` carga `65533` y `sub`, `mul` y `div` del programa
-  dan otros valores. El estado final de la sección 7 lo detecta (`$2 = −3`, `$5 = −21`).
+- **Extensión de signo:** si se extiende con ceros, un inmediato negativo como `-3` carga `65533`. El programa
+  anterior lo detectaba (`movi $2, -3`); **el de clase no**, porque todos sus inmediatos son positivos
+  (mutación 1: 0 errores). El código sigue extendiendo con signo (D7).
 - **Orden de los campos en los muxes:** `RegDst = 1` elige `rd = instr[15:11]` y `0` elige `rt = instr[20:16]`;
-  invertirlos escribe en el registro equivocado (por ejemplo, `add $3, $1, $2` escribiría `$2`).
+  invertirlos escribe en el registro equivocado (por ejemplo, `MOVI $1, 15` escribiría `$0` y se perdería).
 - **Reset:** el PC y el banco deben recibir el mismo `reset` y soltarlo después del primer flanco, como en
   `PC_IMEM_tb`; si no, la instrucción 0 no se ejecuta un ciclo completo.
-- **Comprobar solo el estado final no basta** (hallado al integrar): sin el mux `Jump`, el PC sale del programa,
-  lee palabras vacías y la ControlUnit deja de escribir, así que el banco termina igual. Solo la comparación
-  ciclo a ciclo de `MIPS_tb` lo detecta (mutación 4).
+- **Comprobar solo el estado final no siempre basta** (hallado al integrar con el programa anterior): sin el mux
+  `Jump`, el PC salía del programa, leía palabras vacías y el banco terminaba igual; solo la comparación ciclo a
+  ciclo lo detectaba. Con el programa de clase, sin el salto sí se ejecutan las instrucciones 23–26 y el estado
+  final cambia (`$18 = 42`, `$19 = 40`, `$20 = 255`; mutación 4).
+- **`JUMP 1024`:** la IMEM debe devolver `0` fuera de 0–1023. Si solo usara `addr[9:0]`, el programa volvería a
+  empezar y el estado final dependería de cuándo se detiene la simulación (mutación 6).
 
 ---
 
@@ -1274,7 +1325,7 @@ de [`08_MIPS`](../08_MIPS/README.md)).
 
 | Limitación | Consecuencia |
 | :--- | :--- |
-| IMEM de 16 palabras con un PC de 32 bits | Solo caben 10 instrucciones útiles; más allá de la 15 se lee `x` |
+| IMEM de 1024 palabras con un PC de 32 bits | Más allá de la palabra 1023 se lee `0` (NOP): el PC sigue avanzando, pero nada cambia |
 | Sin memoria de datos | Los datos solo viven en 31 registros útiles |
 | Sin saltos condicionales | No hay bucles con condición: el único control de flujo es `j` |
 | Sin detección de desbordamiento | ADD/ADDI se comportan como ADDU/ADDIU de MIPS |

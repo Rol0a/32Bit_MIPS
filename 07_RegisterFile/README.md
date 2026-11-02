@@ -130,23 +130,24 @@ instrucción no los use (en una tipo I, `rt` es el destino y no un operando; en 
 la dirección). Leer no modifica nada: el valor que sobra lo descarta el mux `ALUSrc` o la propia ALU. Lo único
 que protege el contenido del banco es `RegWrite`.
 
-### Recorrido de un ciclo: `add $3, $1, $2`
-Es la instrucción de la dirección 0 de la IMEM.
+### Recorrido de un ciclo: `ADD $6, $1, $2`
+Es la instrucción 6 del programa de clase (dirección 5 de la IMEM), con `$1 = 15` y `$2 = 20`.
 
-1. **Flanco ↑ (inicio del ciclo):** el PC pasa a 0 y la IMEM entrega `000000_00001_00010_00011_00000_100000`.
-2. **Lectura, sin esperar al reloj:** `rs = 1` → `read_data1 = $1`; `rt = 2` → `read_data2 = $2`.
+1. **Flanco ↑ (inicio del ciclo):** el PC pasa a 5 y la IMEM entrega `000000_00001_00010_00110_00000_100000`.
+2. **Lectura, sin esperar al reloj:** `rs = 1` → `read_data1 = $1 = 15`; `rt = 2` → `read_data2 = $2 = 20`.
 3. **Control y ALU (combinacionales):** la ControlUnit ve el opcode `000000` y genera `RegDst = 1`,
    `ALUSrc = 0`, `RegWrite = 1` y `ALUOp = 10`; ALUControl, con `funct = 100000`, da `0010`; la ALU calcula
-   `$1 + $2`.
-4. **Flanco ↑ (fin del ciclo):** con `write_reg = rd = 3`, el banco guarda `result` en `$3`. En el mismo
-   flanco el PC avanza a la instrucción siguiente.
+   `$1 + $2 = 35`.
+4. **Flanco ↑ (fin del ciclo):** con `write_reg = rd = 6`, el banco guarda `35` en `$6`. En el mismo flanco
+   el PC avanza a la instrucción siguiente.
 
-Con `addi $9, $8, 10` (dirección 1), `rs = 8` se lee por `read_data1`, `RegDst = 0` elige `rt = 9` como
-destino y `ALUSrc = 1` manda el inmediato `10` a la ALU en lugar de `read_data2`.
+Con `ADDI $1, $1, 10` (instrucción 10, dirección 9), `rs = 1` se lee por `read_data1`, `RegDst = 0` elige
+`rt = 1` como destino y `ALUSrc = 1` manda el inmediato `10` a la ALU en lugar de `read_data2`.
 
 **Por qué lectura asíncrona y escritura síncrona:** así una instrucción completa cabe en un ciclo. Si una
-instrucción lee y escribe el mismo registro (`add $1, $1, $2`), durante el ciclo se lee el valor anterior y
-el nuevo solo se guarda en el flanco, así que no hay carrera. El caso 10 del testbench lo comprueba.
+instrucción lee y escribe el mismo registro, como `ADDI $1, $1, 10`, durante el ciclo se lee el valor anterior
+(`15`) y el nuevo (`25`) solo se guarda en el flanco, así que no hay carrera. El caso 10 del testbench lo
+comprueba.
 
 ## Testbench (`RegisterFile_tb.v`)
 - Reloj de 10 ns (`always #5 clk = ~clk`): flancos de subida en t = 5, 15, 25, … ns.

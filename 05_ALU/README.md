@@ -38,10 +38,9 @@ Es la misma que genera ALUControl (entrega 3), así que la ALU no cambia al inte
 ## Decisiones de diseño
 
 1. **Todas las operaciones son con signo** (complemento a 2; decisión 4 del README principal). El programa de
-   la IMEM usa negativos (`movi $2, -3`) y el inmediato se extiende con signo. En suma, resta y multiplicación
-   los 32 bits del resultado son los mismos con o sin signo, así que solo la división necesita `$signed`. Sin
-   él, `-20 / 4` daría `1073741819` (prueba 12) y `div $6, $5, $1` del programa daría `613566753` en vez de
-   `-3`.
+   clase produce un negativo (`SUB $13, $4, $3` = `25 − 50 = −25`) y el inmediato se extiende con signo. En
+   suma, resta y multiplicación los 32 bits del resultado son los mismos con o sin signo, así que solo la
+   división necesita `$signed`. Sin él, `-20 / 4` daría `1073741819` (prueba 12).
 2. **División entre cero → `result = 0`**, con `zero = 1`. Sin protección, Icarus devuelve `x` en `result` y
    en `zero`, y la `x` llegaría al banco de registros en la Fase 4. Con `0` el comportamiento es determinista.
 3. **Control no definido → `result = 0`**, con `zero = 1`. Es el valor por defecto del `always`, así que cubre
@@ -109,22 +108,34 @@ prueba el módulo aislado.
 | `result` | RegisterFile `write_data` | Se guarda en el siguiente flanco de subida si `RegWrite = 1` |
 | `zero` | — | Ninguna instrucción de esta ISA la usa |
 
-### Resultados para el programa de la IMEM
-Lo que calculará la ALU cuando el datapath ejecute el programa precargado en `02_IMEM`, con los registros
-empezando en `0`. Las pruebas 13–15 del testbench cubren `movi`, `mov` y `mul` con estos mismos signos.
+### Resultados para el programa de clase
+Lo que calcula la ALU cuando el procesador (`08_MIPS`) ejecuta las 26 instrucciones de clase, con los
+registros empezando en `0`. En las tipo I, `src2` es el inmediato.
 
-| Dir | Instrucción | `alu_control` | `src1` | `src2` | `result` | `zero` |
+| # | Instrucción | `alu_control` | `src1` | `src2` | `result` | `zero` |
 |---|---|:---:|---:|---:|---:|:---:|
-| 0 | `add $3, $1, $2` | `0010` | `$1 = 0` | `$2 = 0` | `0` | 1 |
-| 1 | `addi $9, $8, 10` | `0010` | `$8 = 0` | `10` | `10` | 0 |
-| 2 | `movi $1, 7` | `0000` | `$0 = 0` | `7` | `7` | 0 |
-| 3 | `movi $2, -3` | `0000` | `$0 = 0` | `-3` | `-3` | 0 |
-| 4 | `sub $4, $1, $2` | `0110` | `7` | `-3` | `10` | 0 |
-| 5 | `mul $5, $1, $2` | `1000` | `7` | `-3` | `-21` | 0 |
-| 6 | `div $6, $5, $1` | `1001` | `-21` | `7` | `-3` | 0 |
-| 7 | `subi $7, $9, 15` | `0110` | `10` | `15` | `-5` | 0 |
-| 8 | `mov $10, $7` | `0001` | `-5` | `$0 = 0` | `-5` | 0 |
-| 9 | `j 9` | `0000` | `$0 = 0` | `$0 = 0` | `0`, no se escribe (`RegWrite = 0`) | 1 |
+| 1–5 | `MOVI $1`…`$5` | `0000` | `$0 = 0` | 15, 20, 50, 5, 2 | 15, 20, 50, 5, 2 | 0 |
+| 6 | `ADD $6, $1, $2` | `0010` | 15 | 20 | 35 | 0 |
+| 7 | `SUB $7, $3, $1` | `0110` | 50 | 15 | 35 | 0 |
+| 8 | `MUL $8, $2, $3` | `1000` | 20 | 50 | 1000 | 0 |
+| 9 | `DIV $9, $3, $2` | `1001` | 50 | 20 | 2 | 0 |
+| 10 | `ADDI $1, $1, 10` | `0010` | 15 | 10 | 25 | 0 |
+| 11 | `SUBI $2, $2, 4` | `0110` | 20 | 4 | 16 | 0 |
+| 12 | `ADD $10, $6, $4` | `0010` | 35 | 5 | 40 | 0 |
+| 13 | `MUL $11, $6, $5` | `1000` | 35 | 2 | 70 | 0 |
+| 14 | `DIV $12, $10, $5` | `1001` | 40 | 2 | 20 | 0 |
+| 15 | `ADDI $4, $4, 20` | `0010` | 5 | 20 | 25 | 0 |
+| 16 | `SUB $13, $4, $3` | `0110` | 25 | 50 | −25 | 0 |
+| 17 | `MOVI $14, 100` | `0000` | `$0 = 0` | 100 | 100 | 0 |
+| 18 | `ADD $15, $14, $1` | `0010` | 100 | 25 | 125 | 0 |
+| 19 | `SUBI $3, $3, 5` | `0110` | 50 | 5 | 45 | 0 |
+| 20 | `MUL $16, $15, $2` | `1000` | 125 | 16 | 2000 | 0 |
+| 21 | `ADDI $17, $1, 1` | `0010` | 25 | 1 | 26 | 0 |
+| 22 | `JUMP 1024` | `0000` | `$0 = 0` | `$0 = 0` | `0`, no se escribe (`RegWrite = 0`) | 1 |
+| — | NOP (palabra `0`, fuera de la IMEM) | `1111` | `$0 = 0` | `$0 = 0` | `0`, destino `$0`: no se escribe | 1 |
+
+`DIV $9, $3, $2` es división entera: `50 / 20 = 2` (se descarta el resto). Las instrucciones 23–26 no se
+ejecutan.
 
 ## Testbench (`ALU_tb.v`)
 - Tarea `probar(ctl, a, b, esperado, esperado_zero, caso)`: pone el control y los operandos, espera 10 ns y

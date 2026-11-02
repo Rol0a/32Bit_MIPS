@@ -4,10 +4,10 @@
 [*]
 [dumpfile] "IMEM_tb.vcd"
 [timestart] 0
-[size] 1500 310
-[pos] 40 40
-[sst_width] 170
-[signals_width] 200
+[size] 1900 310
+[pos] 10 40
+[sst_width] 45
+[signals_width] 170
 [sst_expanded] 0
 [sst_vpaned_height] 120
 @24

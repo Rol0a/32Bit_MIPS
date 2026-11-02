@@ -28,9 +28,9 @@
 
 Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y Banco de Registros**. Cada módulo se verifica con su propio testbench y después todos se integran en el datapath completo (`08_MIPS`).
 
-> **Estado actual:** los seis módulos, la integración PC + IMEM y el procesador completo están implementados y verificados: 8 testbenches, 0 errores. `08_MIPS` ejecuta el programa de la IMEM ciclo a ciclo y deja en el banco los valores calculados a mano ([Arquitectura §7](docs/Arquitectura.md#s7)).
+> **Estado actual:** los seis módulos, la integración PC + IMEM y el procesador completo están implementados y verificados: 8 testbenches, 0 errores. `08_MIPS` ejecuta las **26 instrucciones binarias de clase** (Entrega Final 1) ciclo a ciclo y deja en el banco los valores calculados a mano ([Arquitectura §7](docs/Arquitectura.md#s7)).
 >
-> **Próximo paso:** completar las capturas de consola pendientes y las plantillas `.docx`.
+> **Próximo paso:** tomar las capturas de consola y la foto del CMD, y llenar la plantilla de la Entrega Final 1 ([ver lista](#entrega-final-1--procesador-completo)).
 
 **Navegación**  
 [Entregas](#entregas-y-alcance) · [Repositorio](#estructura-del-repositorio) · [Simulación](#herramientas-y-comandos) · [ISA](#conjunto-de-instrucciones-isa) · [Hoja de ruta](#hoja-de-ruta) · [Decisiones](#decisiones-de-diseño) · [Notas técnicas](#notas-técnicas)
@@ -44,6 +44,8 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 | **1 · PC e IMEM** | Program Counter, memoria de instrucciones e integración | `01_PC` · `02_IMEM` · `03_PC_IMEM` | [Entrega_PC_IMEM.docx](docs/Entrega_PC_IMEM.docx) |
 | **2 · Control y ALU** | Unidad de Control y ALU | `04_ControlUnit` · `05_ALU` | [Entrega_ControlUnit_ALU.docx](docs/Entrega_ControlUnit_ALU.docx) |
 | **3 · ALUControl y registros** | ALUControl y Banco de Registros | `06_ALUControl` · `07_RegisterFile` | [Entrega_ALUControl_RegisterFile.docx](docs/Entrega_ALUControl_RegisterFile.docx) |
+| **Final 1 · Procesador** | Procesador completo ejecutando las 26 instrucciones de clase | `08_MIPS` (con los módulos 01–07) | [Entrega_Final_Procesador_MIPS.docx](docs/Entrega_Final_Procesador_MIPS.docx) |
+| **Final 2 · NanoBoard** | El mismo procesador en la FPGA, con dos Memory Instrument | pendiente | [Entrega_Final_2_Fisico_NanoBoard3000.docx](docs/Entrega_Final_2_Fisico_NanoBoard3000.docx) |
 
 ### Evidencias por ejercicio
 
@@ -58,13 +60,13 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 | Carpeta | Contenido | Estado |
 | :--- | :--- | :--- |
 | [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado · capturas listas |
-| [`02_IMEM/`](02_IMEM/) | Entrega 1 · Ejercicio 2 | ✅ Verificado · repetir `consola.png` (falta `iverilog`) |
-| [`03_PC_IMEM/`](03_PC_IMEM/) | Entrega 1 · Ejercicio 3 | ✅ Verificado · capturas listas |
+| [`02_IMEM/`](02_IMEM/) | Entrega 1 · Ejercicio 2 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
+| [`03_PC_IMEM/`](03_PC_IMEM/) | Entrega 1 · Ejercicio 3 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
 | [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · capturas listas |
 | [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · capturas listas |
-| [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 | ✅ Verificado · repetir `consola.png` |
+| [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 · `funct` de clase | ✅ Verificado · repetir `consola.png` (`funct` nuevos) |
 | [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | ✅ Verificado · falta `consola.png` |
-| [`08_MIPS/`](08_MIPS/) | Fase 4 · Procesador completo (datapath) | ✅ Verificado · falta `consola.png` |
+| [`08_MIPS/`](08_MIPS/) | Entrega Final 1 · Procesador completo | ✅ Verificado · falta `consola.png` y foto del CMD |
 
 <details>
 <summary><strong>Ver árbol completo de archivos</strong></summary>
@@ -77,7 +79,9 @@ P1/
 │   ├── Entrega_PC_IMEM.docx                  # Plantilla de la entrega 1
 │   ├── Entrega_ControlUnit_ALU.docx          # Plantilla de la entrega 2
 │   ├── Entrega_ALUControl_RegisterFile.docx  # Plantilla de la entrega 3
-│   └── Tabla Opcode y Funct.xlsx             # Opcodes (sus funct no se usan: D1)
+│   ├── Entrega_Final_Procesador_MIPS.docx    # Plantilla de la Entrega Final 1 (simulación)
+│   ├── Entrega_Final_2_Fisico_NanoBoard3000.docx  # Plantilla de la Entrega Final 2 (placa)
+│   └── Tabla Opcode y Funct.xlsx             # Opcodes y funct (coinciden con las instrucciones de clase: D1)
 ├── 01_PC/
 │   ├── README.md                   # Especificación, decisiones y casos
 │   ├── PC.v
@@ -161,23 +165,25 @@ gtkwave MIPS_tb.vcd MIPS_tb.gtkw
 
 ## Conjunto de instrucciones (ISA)
 
-Opcodes: `docs/Tabla Opcode y Funct.xlsx`, ampliados a 6 bits. Códigos `funct`: la tabla del enunciado de
-ALUControl (decisión D1). **Los `funct` de la `.xlsx` no se usan**: se contradecían con el enunciado
-(`100010` era SUB en una tabla y DIV en la otra).
+Opcodes y códigos `funct`: los de las **26 instrucciones binarias de clase** (decisión D1), que coinciden con
+`docs/Tabla Opcode y Funct.xlsx`. MOV no aparece en esas instrucciones y conserva el `funct` de la tabla del
+enunciado de ALUControl. Los `funct` de SUB, MUL y DIV de esa tabla (`100100`, `100001`, `100010`) **ya no se
+usan**: con ellos, el `SUB` de clase (`100010`) se habría ejecutado como DIV.
 
 | Instrucción | Tipo | Opcode | Funct | `ALUOp` | `alu_control` | Operación |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **ADD** | R | `000000` | `100000` | `10` | `0010` | `$rd = $rs + $rt` |
-| **SUB** | R | `000000` | `100100` | `10` | `0110` | `$rd = $rs - $rt` |
-| **MUL** | R | `000000` | `100001` | `10` | `1000` | `$rd = $rs * $rt` (32 bits bajos) |
-| **DIV** | R | `000000` | `100010` | `10` | `1001` | `$rd = $rs / $rt` (con signo; entre 0 da 0) |
+| **SUB** | R | `000000` | `100010` | `10` | `0110` | `$rd = $rs - $rt` |
+| **MUL** | R | `000000` | `011000` | `10` | `1000` | `$rd = $rs * $rt` (32 bits bajos) |
+| **DIV** | R | `000000` | `011010` | `10` | `1001` | `$rd = $rs / $rt` (con signo; entre 0 da 0) |
 | **MOV** | R | `000000` | `100011` | `10` | `0001` | `$rd = $rs` |
 | **MOVI** | I | `001010` | — | `00` | `0000` | `$rt = imm` |
 | **ADDI** | I | `001000` | — | `01` | `0010` | `$rt = $rs + imm` |
 | **SUBI** | I | `001001` | — | `11` | `0110` | `$rt = $rs - imm` |
 | **JUMP** | J | `000010` | — | `00` | — | `PC = address` |
 
-El inmediato de 16 bits se extiende **con signo** a 32 bits (D7): `movi $2, -3` carga `0xFFFFFFFD`.
+El inmediato de 16 bits se extiende **con signo** a 32 bits (D7): un inmediato `-3` llega a la ALU como
+`0xFFFFFFFD`. (Los inmediatos del programa de clase son todos positivos.)
 
 ### Formatos de instrucción · 32 bits
 
@@ -207,22 +213,36 @@ La tabla de ALUControl fija esta codificación y la ALU la usa tal cual.
 
 - [x] **Fase 0** — Decisiones de diseño cerradas (ver [Decisiones de diseño](#decisiones-de-diseño)) y tabla ISA congelada.
 - [x] **`01_PC`** — Reset síncrono a `0` y carga de `next_pc` en `posedge clk`. 10/10 ciclos OK.
-- [x] **`02_IMEM`** — 16 × 32 bits, programa de 10 instrucciones (5 R, 4 I, 1 J), lectura combinacional. 18/18 lecturas OK.
-- [x] **`03_PC_IMEM`** — PC + IMEM con `next_pc = current_pc + 1`; instrucción y campos en cada ciclo. 10/10 ciclos OK.
+- [x] **`02_IMEM`** — 1024 × 32 bits, las 26 instrucciones de clase, lectura combinacional; fuera de 0–1023 lee `0`. 31/31 lecturas OK.
+- [x] **`03_PC_IMEM`** — PC + IMEM con `next_pc = current_pc + 1`; instrucción y campos en cada ciclo. 27/27 ciclos OK.
 - [x] **`04_ControlUnit`** — Decodificador de opcode con valores por defecto antes del `case`. 12/12 pruebas OK.
 - [x] **`05_ALU`** — Con signo, `/0 → 0`, control no definido → `0`, bandera `zero`. 22/22 pruebas OK.
-- [x] **`06_ALUControl`** — `always @(*)` con valor por defecto y `case` sobre `ALUOp` y `funct`. 16/16 pruebas OK.
+- [x] **`06_ALUControl`** — `always @(*)` con valor por defecto y `case` sobre `ALUOp` y `funct` (los de clase). 17/17 pruebas OK.
 - [x] **`07_RegisterFile`** — 32 × 32 bits, lectura asíncrona, escritura síncrona, `$0` siempre en `0`. 19/19 pruebas OK.
 
 ### Pendiente para entregar
 
-- [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir `02_IMEM` y `06_ALUControl` (solo se ve
-  `vvp`; la de `06` además es de la versión anterior del testbench) y tomar las de `07_RegisterFile` y
-  `08_MIPS`. La de `04_ControlUnit` empieza con un intento fallido (`vvp ControlUnit.vvp`); conviene repetirla
-  o recortarla.
-- [ ] Llenar las tres plantillas `.docx` con el código, las capturas y las tablas de casos de cada README.
+- [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir `02_IMEM`, `03_PC_IMEM` y
+  `06_ALUControl` (cambiaron con el programa de clase) y tomar las de `07_RegisterFile` y `08_MIPS`. La de
+  `04_ControlUnit` empieza con un intento fallido (`vvp ControlUnit.vvp`); conviene repetirla o recortarla.
+- [ ] Llenar las plantillas `.docx` con el código, las capturas y las tablas de casos de cada README.
   En la entrega 3, explicar las filas 7, 10 y 11 de la tabla de ALUControl (ver
   [Diferencias con las plantillas](#diferencias-con-las-plantillas)).
+
+### Entrega Final 1 · Procesador completo
+
+Todo lo que pide la plantilla está en [`08_MIPS/README.md`](08_MIPS/README.md#entrega-final-1-cómo-responde-el-diseño).
+
+- [x] Archivos `.v`: `PC.v`, `IMEM.v`, `ControlUnit.v`, `ALUControl.v`, `RegisterFile.v`, `ALU.v`, el top module
+  `MIPS.v` y el testbench `MIPS_tb.v`. Juntos en una carpeta compilan con `iverilog -o salida.vvp *.v`.
+- [x] IMEM de 1024 palabras con las 26 instrucciones de clase copiadas sin cambios.
+- [x] Testbench con el formato sugerido (`PC=… Instr=…`, campos, señales, `rd1`/`rd2`/`ALU` y `$rd<=valor`),
+  26 ciclos explicados en un comentario, y los 32 registros al final. 0 errores.
+- [x] `gtkwave.png` con reloj, PC, instrucción, control, operandos, ALU, registro escrito y `$1`–`$20`.
+- [x] Valores esperados a mano (secciones 8 y 10) y decisiones de diseño (sección 9) redactadas en el README.
+- [ ] `consola.png` de `08_MIPS` (varias capturas consecutivas si no cabe).
+- [ ] Foto del CMD con la tabla «Valores finales de los registros».
+- [ ] Llenar `Entrega_Final_Procesador_MIPS.docx`: integrantes, módulos, diagrama, código, capturas y tablas.
 
 ### Fase 4 · Integración del datapath
 
@@ -232,9 +252,10 @@ Los seis módulos se conectan en [`08_MIPS`](08_MIPS/) sin modificarlos. Detalle
 - [x] **`08_MIPS/MIPS.v`** — Módulo superior: seis instancias con el mismo `clk` y `reset` para el PC y el banco;
   campos, extensión de signo, mux `RegDst`, mux `ALUSrc`, `PC + 1`, mux `Jump` y write-back, todo con `assign`.
   Compila sin advertencias con `iverilog -Wall`.
-- [x] **`08_MIPS/MIPS_tb.v`** — Reset, 12 ciclos comparados señal por señal con
+- [x] **`08_MIPS/MIPS_tb.v`** — Reset, 26 ciclos del programa de clase comparados señal por señal con
   [Arquitectura §7](docs/Arquitectura.md#s7), registro escrito tras cada flanco y estado final de los 32
-  registros. Todo OK; cinco mutaciones de conexión detectadas.
+  registros. Todo OK; seis de siete mutaciones detectadas (la extensión con ceros no se nota: el programa de
+  clase no tiene inmediatos negativos).
 
 ### Flujo de trabajo por módulo
 
@@ -252,11 +273,11 @@ Todas están cerradas e implementadas. La lista completa, con alternativas y jus
 
 | # | Decisión | Afecta a |
 | :---: | :--- | :--- |
-| D1 | `funct` de la tabla del enunciado de ALUControl, no los de la `.xlsx` | IMEM, ALUControl |
+| D1 | `funct` de las instrucciones binarias de clase (= `.xlsx`); MOV conserva el del enunciado | IMEM, ALUControl |
 | D2 | `ALUOp`: `00` MOVI, `01` ADDI, `10` tipo R, `11` SUBI | ControlUnit, ALUControl |
 | D3 | Tabla de control sin `x`: JUMP y opcodes no definidos con `RegWrite = 0` | ControlUnit |
 | D4 | ALU con signo; división entre cero → `0`; control no definido → `0` | ALU |
-| D5 | IMEM indexada con `addr[4:0]`: palabras 10–15 y dirección 16 leen `x` | IMEM |
+| D5 | IMEM de 1024 palabras; sin programa y fuera de 0–1023 lee `0` (NOP): tras `JUMP 1024` los registros quedan congelados | IMEM |
 | D6 | Direccionamiento por palabra: `next_pc = current_pc + 1` | PC, siguiente PC |
 | D7 | Inmediato con extensión de signo | Datapath |
 | D8 | Salto: `PC = {6'b0, address}` | Datapath |
@@ -271,6 +292,8 @@ Todas están cerradas e implementadas. La lista completa, con alternativas y jus
 | Entrega 2 · Unidad de Control | Deja celdas en «—» | Valores concretos (D3) | [`04_ControlUnit`](04_ControlUnit/README.md) |
 | Entrega 3 · ALUControl, caso 7 | ADDI «llega con `ALUOp = 00`» | ADDI llega con `01`; con `00` saldría MOVI (prueba 7) | [`06_ALUControl`](06_ALUControl/README.md) |
 | Entrega 3 · ALUControl, casos 10–11 | `ALUOp` `01` y `11` «no definidos» | `01` = ADDI (suma) y `11` = SUBI (resta), D2 | [`06_ALUControl`](06_ALUControl/README.md) |
+| Entrega 3 · ALUControl, casos 2–4 | `funct` del enunciado (SUB `100100`, MUL `100001`, DIV `100010`) | `funct` de las instrucciones de clase (`100010`, `011000`, `011010`), D1 | [`06_ALUControl`](06_ALUControl/README.md) |
+| Entrega Final 1 · datapath de referencia | DMEM, `MemRead`, `MemWrite`, `MemtoReg`, sumador de *branch*, `PC + 4` | Sin DMEM ni *branch* (la ISA no los usa); `PC + 1` (D6) | [`08_MIPS`](08_MIPS/README.md) |
 
 ## Notas técnicas
 

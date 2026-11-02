@@ -4,10 +4,10 @@
 [*]
 [dumpfile] "MIPS_tb.vcd"
 [timestart] 0
-[size] 1900 680
+[size] 1900 900
 [pos] 10 40
 [sst_width] 45
-[signals_width] 190
+[signals_width] 170
 [sst_expanded] 0
 [sst_vpaned_height] 120
 @200
@@ -34,6 +34,7 @@ MIPS_tb.uut.alu_control[3:0]
 -Ejecucion
 @424
 MIPS_tb.uut.read_data1[31:0]
+MIPS_tb.uut.read_data2[31:0]
 MIPS_tb.uut.src2[31:0]
 MIPS_tb.alu_result[31:0]
 @28
@@ -53,5 +54,15 @@ MIPS_tb.R7[31:0]
 MIPS_tb.R8[31:0]
 MIPS_tb.R9[31:0]
 MIPS_tb.R10[31:0]
+MIPS_tb.R11[31:0]
+MIPS_tb.R12[31:0]
+MIPS_tb.R13[31:0]
+MIPS_tb.R14[31:0]
+MIPS_tb.R15[31:0]
+MIPS_tb.R16[31:0]
+MIPS_tb.R17[31:0]
+MIPS_tb.R18[31:0]
+MIPS_tb.R19[31:0]
+MIPS_tb.R20[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

@@ -47,9 +47,10 @@ el enunciado deja como «—» o no menciona, decididos por el grupo (decisiones
 3. **`ALUOp = 01` → ADDI y `ALUOp = 11` → SUBI** (decisión 2). El enunciado solo define `00` (MOVI) y `10`
    (tipo R). Si ADDI y SUBI usaran `00`, ALUControl pediría la operación de MOVI y la ALU devolvería solo el
    inmediato. ALUControl ya decodifica `01` como suma y `11` como resta.
-4. **Opcode no definido → estado seguro `0 0 0 0 00`:** no escribe registros ni salta. En la Fase 4 se
-   comporta como un `nop`: el PC avanza `+1` y nada más cambia. Esto incluye un opcode con bits `x`, que es lo
-   que lee la IMEM en las palabras 10 a 15.
+4. **Opcode no definido → estado seguro `0 0 0 0 00`:** no escribe registros ni salta. En el procesador se
+   comporta como un `nop`: el PC avanza `+1` y nada más cambia. Esto incluye un opcode con bits `x`, el de una
+   palabra de memoria sin inicializar. (La IMEM actual pone en `0` las palabras sin programa; esa palabra no
+   llega aquí, porque su opcode `000000` es tipo R: ver la última fila de la tabla de abajo).
 
 ## Cómo funciona el código
 ```verilog
@@ -107,22 +108,19 @@ README principal (fuera del alcance de esta práctica). Por ahora el testbench p
 | `Jump` | Mux del siguiente PC → PC `next_pc` | `1`: `address = instruction[25:0]`, dirección de palabra directa; `0`: `current_pc + 1` |
 | `ALUOp` | ALUControl `ALUOp` | `00` MOVI, `01` ADDI, `10` tipo R (decodifica `funct`), `11` SUBI |
 
-### Señales para el programa de la IMEM
-Lo que generará ControlUnit cuando el datapath ejecute el programa precargado en `02_IMEM`:
+### Señales para el programa de clase
+Lo que genera ControlUnit cuando el procesador (`08_MIPS`) ejecuta las 26 instrucciones de clase precargadas
+en `02_IMEM` (instrucción `#n` en la dirección `n − 1`):
 
-| Dir | Instrucción | Opcode | Señales | Qué hace |
-|---|---|:---:|:---:|---|
-| 0 | `add $3, $1, $2` | `000000` | `1 0 1 0 10` | Escribe en `rd = $3` |
-| 1 | `addi $9, $8, 10` | `001000` | `0 1 1 0 01` | Suma el inmediato y escribe en `rt = $9` |
-| 2 | `movi $1, 7` | `001010` | `0 1 1 0 00` | Escribe el inmediato en `rt = $1` |
-| 3 | `movi $2, -3` | `001010` | `0 1 1 0 00` | Escribe el inmediato en `rt = $2` |
-| 4 | `sub $4, $1, $2` | `000000` | `1 0 1 0 10` | Escribe en `rd = $4` |
-| 5 | `mul $5, $1, $2` | `000000` | `1 0 1 0 10` | Escribe en `rd = $5` |
-| 6 | `div $6, $5, $1` | `000000` | `1 0 1 0 10` | Escribe en `rd = $6` |
-| 7 | `subi $7, $9, 15` | `001001` | `0 1 1 0 11` | Resta el inmediato y escribe en `rt = $7` |
-| 8 | `mov $10, $7` | `000000` | `1 0 1 0 10` | Escribe en `rd = $10` |
-| 9 | `j 9` | `000010` | `0 0 0 1 00` | `PC = 9`, sin escribir registros |
-| 10–15 | sin instrucción | `xxxxxx` | `0 0 0 0 00` | Nada (no se alcanzan: `j 9` salta a sí misma) |
+| Dir | # | Instrucción | Opcode | Señales | Qué hace |
+|---|---|---|:---:|:---:|---|
+| 0–4, 16 | 1–5, 17 | `MOVI` | `001010` | `0 1 1 0 00` | Escribe el inmediato en `rt` |
+| 5–8, 11–13, 15, 17, 19 | 6–9, 12–14, 16, 18, 20 | `ADD`, `SUB`, `MUL`, `DIV` | `000000` | `1 0 1 0 10` | Escribe en `rd`; ALUControl elige la operación con `funct` |
+| 9, 14, 20 | 10, 15, 21 | `ADDI` | `001000` | `0 1 1 0 01` | Suma el inmediato y escribe en `rt` |
+| 10, 18 | 11, 19 | `SUBI` | `001001` | `0 1 1 0 11` | Resta el inmediato y escribe en `rt` |
+| 21 | 22 | `JUMP 1024` | `000010` | `0 0 0 1 00` | `PC = 1024`, sin escribir registros |
+| 22–25 | 23–26 | `ADD`, `SUB`, `MOVI`, `MOVI` | — | — | No se alcanzan: el salto sale de la IMEM |
+| ≥ 1024 | — | palabra `0` (NOP) | `000000` | `1 0 1 0 10` | `RegWrite = 1` hacia `rd = $0`: el banco no escribe `$0` |
 
 ## Testbench (`ControlUnit_tb.v`)
 - Tarea `probar(opcode, esperado, caso)`: pone el opcode, espera 10 ns y compara las cinco salidas a la vez.
