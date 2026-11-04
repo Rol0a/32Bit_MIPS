@@ -56,14 +56,14 @@ principales son:
 
 | Módulo | Carpeta | Lógica | Estado | Verificación (resimulada) |
 | :--- | :--- | :--- | :---: | :--- |
-| PC | [`01_PC`](../01_PC/) | Secuencial | ✅ | 10 ciclos, 12 comprobaciones, 0 errores |
+| PC | [`01_PC`](../01_PC/) | Secuencial | ✅ | 10 ciclos, 13 comprobaciones, 0 errores |
 | IMEM | [`02_IMEM`](../02_IMEM/) | Combinacional (ROM) | ✅ | 31 lecturas, 0 errores |
 | PC + IMEM | [`03_PC_IMEM`](../03_PC_IMEM/) | Integración | ✅ | 27 ciclos, 0 errores |
 | ControlUnit | [`04_ControlUnit`](../04_ControlUnit/) | Combinacional | ✅ | 12 pruebas, 0 errores |
 | ALU | [`05_ALU`](../05_ALU/) | Combinacional | ✅ | 22 pruebas, 0 errores |
 | ALUControl | [`06_ALUControl`](../06_ALUControl/) | Combinacional | ✅ | 17 pruebas, 0 errores |
-| RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 19 pruebas, 0 errores |
-| MIPS (datapath completo) | [`08_MIPS`](../08_MIPS/) | Integración: 6 instancias + `assign` | ✅ | Programa de clase: reset, 26 ciclos y 32 registros, 0 errores |
+| RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 20 pruebas, 0 errores |
+| MIPS (datapath completo) | [`08_MIPS`](../08_MIPS/) | Integración: 6 instancias + `assign` | ✅ | Programa de clase: 26 ciclos y 32 registros, 0 errores |
 
 ---
 
@@ -503,7 +503,7 @@ empieza en su salida.
 | `next_pc` | in | 32 | Dirección siguiente |
 | `current_pc` | out reg | 32 | Dirección actual |
 
-**Código** ([`PC.v:23-28`](../01_PC/PC.v#L23-L28)):
+**Código** ([`PC.v:13-18`](../01_PC/PC.v#L13-L18)):
 
 ```verilog
 always @(posedge clk) begin
@@ -534,11 +534,11 @@ end
 
 - Reloj de 10 ns. Las entradas cambian en el **flanco de bajada** y se comprueba **1 ns después del flanco de
   subida**, cuando el `<=` ya se asentó.
-- La tarea `paso(reset, next_pc, esperado, caso)` encapsula un ciclo, y `verificar` compara con `!==`, así que una
+- La tarea `paso(reset, next_pc, esperado, caso)` encapsula un ciclo, y `verificar` compara con `===`, así que una
   `x` cuenta como error.
 - Casos: reset con `next_pc ≠ 0` (el reset gana), soltar reset, avance normal, `next_pc` cambiando **dos veces
   entre flancos** sin que el PC se mueva, reset a mitad de ejecución y 32 bits en 1.
-- **Resultado: 10 ciclos y 12 comprobaciones, 0 errores.**
+- **Resultado: 10 ciclos y 13 comprobaciones, 0 errores.**
 
 <a id="s5-2"></a>
 
@@ -554,9 +554,9 @@ end
 **Código:**
 
 ```verilog
-reg [31:0] memory [0:1023];                   // IMEM.v:15 — 1024 palabras de 32 bits
-assign instruction = (addr < 32'd1024) ? memory[addr[9:0]] : 32'd0;   // IMEM.v:24
-initial begin                                 // IMEM.v:32-62 — programa de clase
+reg [31:0] memory [0:1023];                   // IMEM.v:10 — 1024 palabras de 32 bits
+assign instruction = (addr < 32'd1024) ? memory[addr[9:0]] : 32'd0;   // IMEM.v:14
+initial begin                                 // IMEM.v:18-48 — programa de clase
     for (i = 0; i < 1024; i = i + 1)
         memory[i] = 32'd0;                    // palabras sin programa: 0
     memory[0]  = 32'b001010_00000_00001_0000000000001111;   //  1  I  MOVI $1, 15
@@ -607,10 +607,10 @@ está en la dirección `n − 1`. La tabla completa, con binario, hex y efecto, 
 **Verificación** ([`IMEM_tb.v`](../02_IMEM/IMEM_tb.v)):
 
 - Declara los campos como `wire` (`opcode = instruction[31:26]`, …) para que aparezcan en GTKWave.
-- `leer(dirección, esperado, caso)` espera 10 ns (lectura combinacional) y compara con `!==`: una `x` también
+- `leer(dirección, esperado, caso)` espera 10 ns (lectura combinacional) y compara con `===`: una `x` también
   cuenta como error.
-- Detecta el formato por el opcode (`000000` → R, `000010` → J, el resto → I) e imprime los campos según ese
-  formato. El inmediato se muestra con `$signed`.
+- Un solo `$display` imprime dos líneas: la instrucción y los ocho campos por nombre, sin distinguir el formato.
+  El inmediato se muestra con `$signed`.
 - **El esperado se copia a mano** de la tabla de clase, no se lee de la memoria: un error de copia en `IMEM.v`
   aparece como `ERROR`.
 - **Resultado: 31 lecturas (0–25, 26, 1023, 1024, 1025 y 2048), 0 errores.**
@@ -625,9 +625,9 @@ salto.
 **Código** ([`PC_IMEM_tb.v`](../03_PC_IMEM/PC_IMEM_tb.v)):
 
 ```verilog
-assign next_pc = current_pc + 32'd1;                        // :22 — el PC avanza solo
-PC   uut_pc   (.clk(clk), .reset(reset), .next_pc(next_pc), .current_pc(current_pc));   // :36-41
-IMEM uut_imem (.addr(current_pc), .instruction(instruction));                           // :44-47
+wire [31:0] next_pc = current_pc + 32'd1;                   // :11 — el PC avanza solo
+PC   uut_pc   (.clk(clk), .reset(reset), .next_pc(next_pc), .current_pc(current_pc));   // :13
+IMEM uut_imem (.addr(current_pc), .instruction(instruction));                           // :14
 ```
 
 - **No hay módulo nuevo:** la plantilla pide calcular la dirección siguiente en el testbench. El sumador y el mux
@@ -635,7 +635,7 @@ IMEM uut_imem (.addr(current_pc), .instruction(instruction));                   
 - Se compilan `../01_PC/PC.v` y `../02_IMEM/IMEM.v` desde su carpeta original. **No se copian**, para que exista
   una sola fuente de verdad.
 
-**Temporización del arranque** ([`PC_IMEM_tb.v:115-116`](../03_PC_IMEM/PC_IMEM_tb.v#L115-L116)):
+**Temporización del arranque** ([`PC_IMEM_tb.v:34-35`](../03_PC_IMEM/PC_IMEM_tb.v#L34-L35)):
 
 | t | Evento |
 | :--- | :--- |
@@ -680,18 +680,18 @@ verdad hecha hardware.
 | JUMP | `000010` | 0 | 0 | **0** | 1 | `00` |
 | No definido (o `x`/`z`) | otro | 0 | 0 | **0** | **0** | `00` |
 
-**Código** ([`ControlUnit.v:21-82`](../04_ControlUnit/ControlUnit.v#L21-L82)):
+**Código** ([`ControlUnit.v:14-31`](../04_ControlUnit/ControlUnit.v#L14-L31)):
 
 ```verilog
 always @(*) begin
-    RegDst = 1'b0; ALUSrc = 1'b0; RegWrite = 1'b0; Jump = 1'b0; ALUOp = 2'b00;   // :28-32 valores por defecto
+    RegDst = 1'b0; ALUSrc = 1'b0; RegWrite = 1'b0; Jump = 1'b0; ALUOp = 2'b00;   // :17-21 valores por defecto
     case (opcode)
-        6'b000000: begin RegDst = 1'b1; RegWrite = 1'b1; ALUOp = 2'b10; end      // :40-44 tipo R
-        6'b001010: begin ALUSrc = 1'b1; RegWrite = 1'b1; end                     // :48-51 MOVI
-        6'b001000: begin ALUSrc = 1'b1; RegWrite = 1'b1; ALUOp = 2'b01; end      // :55-59 ADDI
-        6'b001001: begin ALUSrc = 1'b1; RegWrite = 1'b1; ALUOp = 2'b11; end      // :63-67 SUBI
-        6'b000010: begin Jump = 1'b1; end                                        // :72-74 JUMP
-        default: ;                                                               // :79    no definido
+        6'b000000: begin RegDst = 1'b1; RegWrite = 1'b1; ALUOp = 2'b10; end      // :24    tipo R
+        6'b001010: begin ALUSrc = 1'b1; RegWrite = 1'b1; end                     // :25    MOVI
+        6'b001000: begin ALUSrc = 1'b1; RegWrite = 1'b1; ALUOp = 2'b01; end      // :26    ADDI
+        6'b001001: begin ALUSrc = 1'b1; RegWrite = 1'b1; ALUOp = 2'b11; end      // :27    SUBI
+        6'b000010: begin Jump = 1'b1; end                                        // :28    JUMP
+        default: ;                                                               // :29    no definido
     endcase
 end
 ```
@@ -710,7 +710,7 @@ end
 
 | Decisión | Alternativa | Por qué |
 | :--- | :--- | :--- |
-| **Ninguna salida en `x`** (D3) | Usar `x` como «no importa» en las celdas «—» del enunciado | Con valores concretos, el testbench compara las 5 señales con `!==` y en la Fase 4 no se propagan `x` por los muxes. Una `x` en `RegWrite` o `Jump` podría corromper el estado |
+| **Ninguna salida en `x`** (D3) | Usar `x` como «no importa» en las celdas «—» del enunciado | Con valores concretos, el testbench compara las 5 señales con `===` y en la Fase 4 no se propagan `x` por los muxes. Una `x` en `RegWrite` o `Jump` podría corromper el estado |
 | **JUMP: `RegWrite = 0`** | Dejarlo indefinido | Un salto no produce un resultado. Si escribiera, guardaría basura en algún registro |
 | **Opcode no definido → `0 0 0 0 00`** | Cualquier otra combinación | Es el estado **seguro**: no escribe ni salta, así que se comporta como un `nop`. Incluye el opcode `x` de una palabra de memoria sin inicializar |
 | **`ALUOp`: `01` ADDI, `11` SUBI** (D2) | Usar `00` para todas las I | El enunciado solo define `00` (MOVI) y `10` (R). Con `00`, ADDI y SUBI ejecutarían «pasar `src2`» y devolverían solo el inmediato. Así quedan definidos los 4 valores de `ALUOp` |
@@ -748,7 +748,7 @@ código de 4 bits que selecciona la operación de la ALU.
 | `10` | otro | no definido | `1111` | `result = 0` |
 | `11` | cualquiera | SUBI | `0110` | `src1 − src2` |
 
-**Código** ([`ALUControl.v:33-78`](../06_ALUControl/ALUControl.v#L33-L78)):
+**Código** ([`ALUControl.v:11-32`](../06_ALUControl/ALUControl.v#L11-L32)):
 
 ```verilog
 always @(*) begin
@@ -907,11 +907,11 @@ GTKWave como *Signed Decimal*.
 **Código** ([`RegisterFile.v`](../07_RegisterFile/RegisterFile.v)):
 
 ```verilog
-reg [31:0] registers [0:31];                                                   // :24
-assign read_data1 = (read_reg1 == 5'd0) ? 32'd0 : registers[read_reg1];        // :33
-assign read_data2 = (read_reg2 == 5'd0) ? 32'd0 : registers[read_reg2];        // :34
+reg [31:0] registers [0:31];                                                   // :17
+assign read_data1 = (read_reg1 == 5'd0) ? 32'd0 : registers[read_reg1];        // :21
+assign read_data2 = (read_reg2 == 5'd0) ? 32'd0 : registers[read_reg2];        // :22
 
-always @(posedge clk) begin                                                    // :40-59
+always @(posedge clk) begin                                                    // :25-35
     if (reset)
         for (i = 0; i < 32; i = i + 1) registers[i] <= 32'd0;
     else begin
@@ -932,9 +932,9 @@ end
 
 | Mecanismo | Línea | Qué garantiza |
 | :--- | :---: | :--- |
-| La lectura de `$0` se fuerza a 0 | 33–34 | Los puertos dan 0 aunque el arreglo tuviera `x` (antes del reset) |
-| Se ignora la escritura con `write_reg = 0` | 56 | Una instrucción con destino `$0` no tiene efecto |
-| `registers[0] <= 0` en cada flanco | 51 | El valor interno también es 0, visible en `uut.registers[0]` y en GTKWave |
+| La lectura de `$0` se fuerza a 0 | 21–22 | Los puertos dan 0 aunque el arreglo tuviera `x` (antes del reset) |
+| Se ignora la escritura con `write_reg = 0` | 32 | Una instrucción con destino `$0` no tiene efecto |
+| `registers[0] <= 0` en cada flanco | 31 | El valor interno también es 0, visible en `uut.registers[0]` y en GTKWave |
 
 Con cualquiera de los dos primeros bastaría; juntos son redundantes, pero no estorban.
 
@@ -951,14 +951,15 @@ Con cualquiera de los dos primeros bastaría; juntos son redundantes, pero no es
 **Verificación** ([`RegisterFile_tb.v`](../07_RegisterFile/RegisterFile_tb.v)):
 
 - Accede al arreglo interno con una **referencia jerárquica** (`uut.registers[i]`) para comprobar los 32 registros
-  tras el reset e imprimir `R1=…, R2=…, R3=…, R0=…` (formato del enunciado) después de cada ciclo de escritura.
+  tras el reset e imprimir `R1=…, R2=…, R3=…, R0=…` (formato del enunciado) en cada línea; toda escritura va
+  seguida de una lectura.
 - Sigue los casos 1–11 de la plantilla: reset; escribir y leer; dos registros a la vez y el **mismo registro por
   los dos puertos**; intento de escribir `$0` (puertos y arreglo); `RegWrite = 0`; **lectura asíncrona** sin
   flanco; **escritura síncrona con el dato cambiando entre flancos** (se guarda el del flanco); sobrescribir;
   `$31` con `0xDEADBEEF`; leer el registro que se está escribiendo; **reset con datos**, comprobando que nada se
   borra hasta el flanco. Más un adicional: antes del primer reset, `$0` ya se lee como 0 y `$1` como `x`.
 - Cuatro mutaciones (escribir `$0`, reset asíncrono, ignorar `RegWrite`, no forzar `$0` al leer) dan error.
-- **Resultado: 19 pruebas, 0 errores.**
+- **Resultado: 20 pruebas, 0 errores.**
 
 <a id="s5-8"></a>
 
@@ -982,12 +983,12 @@ módulo propio son pequeñas, pero sin ellas los módulos no forman un procesado
 **Interfaz:** entradas `clk` y `reset`; salidas `current_pc`, `instruction` y `alu_result` para observar el
 procesador. `zero` queda en un `wire` interno sin uso, preparado para un futuro `beq`.
 
-**Verificación:** `MIPS_tb` imprime cada instrucción con el formato sugerido por la plantilla de la Entrega
-Final 1 (`PC=… Instr=…`, campos, señales, `rd1`/`rd2`/`ALU` y `$rd<=valor`). En el flanco ↓ de cada ciclo compara
+**Verificación:** `MIPS_tb` imprime una línea por instrucción con un solo `$display` (`PC=… Instr=…`, señales,
+`rd1`/`rd2`/`ALU` y `$rd<=valor`). En el flanco ↓ de cada ciclo compara
 PC, instrucción, las cinco señales de control, `alu_control`, `read_data1`, `read_data2`, el resultado, `zero`,
-`write_reg` y `next_pc` con la traza de la sección 7; 1 ns después del flanco ↑ comprueba el registro escrito con
-`uut.rf.registers[i]`. Ejecuta 26 ciclos (las 22 instrucciones hasta `JUMP 1024` y cuatro NOPs en PC 1024–1027) y
-al final imprime y compara los 32 registros. Resultado: reset, 26 ciclos y 32 registros sin errores. De siete
+`write_reg` y `next_pc` con la traza de la sección 7. Ejecuta 26 ciclos (las 22 instrucciones hasta `JUMP 1024` y cuatro NOPs en PC 1024–1027) y
+al final imprime y compara los 32 registros, leídos con `uut.rf.registers[i]`. Resultado: 26 ciclos y 32 registros
+sin errores. De siete
 mutaciones (extensión con ceros, `RegDst` o `ALUSrc` invertidos, sin mux `Jump`, banco sin reset, IMEM sin
 comprobación de rango, `funct` del enunciado) detecta seis; la extensión con ceros no se nota porque el programa
 de clase no tiene inmediatos negativos. Detalle en [`08_MIPS/README.md`](../08_MIPS/README.md).
@@ -1047,7 +1048,7 @@ caso 10 del testbench del banco lo comprueba: antes del flanco se lee `10` y des
   así que los `always` de ControlUnit, ALUControl y ALU aún no se han ejecutado y sus salidas conservan el `x`
   inicial (se ve en rojo en la captura de `08_MIPS`). Lo que protege el banco es que **su reset tiene prioridad
   sobre `RegWrite`**: en ese primer flanco `reset = 1`. **No hay escrituras espurias**; `MIPS_tb` lo comprueba
-  a los 6 ns (PC y los 32 registros en 0). La ControlUnit sí cae en `default` cuando el `opcode` *cambia* a `x`,
+  en la primera línea (PC = 0) y en los 32 registros finales. La ControlUnit sí cae en `default` cuando el `opcode` *cambia* a `x`,
   por ejemplo si el PC llegara a una palabra sin inicializar (la IMEM actual las pone en 0).
 - Hay que soltar el reset después del primer flanco y antes del siguiente, para que la instrucción 0 se ejecute un
   ciclo completo.
@@ -1072,7 +1073,7 @@ no se usa en procesadores reales y por qué existen los diseños multiciclo y se
 | :--- | :--- | :--- |
 | Cambiar las entradas en el **flanco ↓** | `PC_tb`, `RegisterFile_tb` | Lejos del flanco activo: no hay carrera entre el testbench y el DUT |
 | Observar **1 ns después del flanco ↑** o en el flanco ↓ | Todos los secuenciales | El `<=` ya se asentó. Imprimir en el mismo flanco mostraría el valor anterior |
-| Señales del ciclo en el flanco ↓, escritura 1 ns después del flanco ↑ | `MIPS_tb` | A mitad de ciclo la lógica combinacional ya se asentó; el registro destino solo cambia en el flanco que termina la instrucción |
+| Una línea por ciclo en el flanco ↓, registros finales 1 ns después del último flanco ↑ | `MIPS_tb` | A mitad de ciclo la lógica combinacional ya se asentó; el banco solo cambia en el flanco que termina la instrucción |
 | Esperar `#10` sin reloj | `IMEM_tb`, `ControlUnit_tb`, `ALUControl_tb` | Son combinacionales: basta con que la salida se asiente |
 
 ---
@@ -1157,10 +1158,11 @@ ejecutan**: `JUMP 1024` lleva el PC fuera de la memoria, donde solo se leen NOPs
 
 | Principio | Implementación | Por qué |
 | :--- | :--- | :--- |
-| **Autocomprobación** | Contadores `pruebas`/`errores` y una línea de resumen | No hace falta leer cientos de líneas para saber si pasó |
+| **Autocomprobación** | `OK`/`ERROR` en cada línea, sin línea de resumen | `vvp <tb>.vvp \| findstr ERROR` no imprime nada si todo pasó |
 | **Esperado independiente del DUT** | Valores escritos a mano en el testbench, nunca leídos del módulo | Si el esperado saliera del propio módulo, un error se compararía consigo mismo |
-| **Comparación de cuatro estados** | `!==` para contar errores y `===` para el `OK` | Con `!=`, una `x` daría «desconocido» y no contaría como error. Con `!==` sí cuenta, y una `x` esperada solo coincide con una `x` real |
-| **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `ciclo`, `comprobar`, `revisar_reset`, `revisar_banco` | Cada caso es una línea legible y el formato de salida es uniforme |
+| **Comparación de cuatro estados** | `===` para decidir `OK` o `ERROR` | Con `==`, una `x` daría «desconocido». Con `===` una `x` inesperada da `ERROR`, y una `x` esperada solo coincide con una `x` real |
+| **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `ciclo`, `imprimir` | Cada caso es una línea legible |
+| **Una sola impresión** | Un `$display` por testbench; con `\n` da dos líneas donde la plantilla las pide | El formato de salida es uniforme y se cambia en un solo lugar |
 | **Casos de borde** | Opcode `x`, direcciones fuera de rango, `0xFFFFFFFF`, `$0`, `$31`, reset con prioridad, cambios entre flancos | Los errores viven en los bordes |
 | **Pruebas de mutación** | Copias defectuosas del módulo (sin el valor por defecto de `Jump`, `ALUOp` cambiado, PC `+4`; en el datapath, extensión con ceros, muxes invertidos, sin mux `Jump`, banco sin reset, IMEM sin comprobación de rango, `funct` del enunciado) | Demuestran que el testbench **detecta** los errores que pretende prevenir, y también qué no detecta (la extensión con ceros, con el programa de clase) |
 | **Ondas** | `$dumpfile`/`$dumpvars(0, tb)` y vistas guardadas `.gtkw` | La plantilla pide capturas; el `.gtkw` fija las señales y sus formatos |
@@ -1169,14 +1171,14 @@ ejecutan**: `JUMP 1024` lleva el PC fuera de la memoria, donde solo se leen NOPs
 
 | Testbench | Tipo de estímulo | Comprobaciones | Duración | Resultado |
 | :--- | :--- | :---: | :---: | :---: |
-| `PC_tb` | Reloj; entradas en flanco ↓ | 12 (10 ciclos) | 100 ns | ✅ 0 errores |
+| `PC_tb` | Reloj; entradas en flanco ↓ | 13 (10 ciclos) | 100 ns | ✅ 0 errores |
 | `IMEM_tb` | Dirección cada 10 ns | 31 | 310 ns | ✅ |
 | `PC_IMEM_tb` | Reloj; el PC avanza solo | 27 | 274 ns | ✅ |
 | `ControlUnit_tb` | Opcode cada 10 ns | 12 | 120 ns | ✅ |
 | `ALUControl_tb` | `ALUOp`/`funct` cada 10 ns | 17 | 170 ns | ✅ |
-| `RegisterFile_tb` | Reloj; entradas en flanco ↓; acceso jerárquico | 19 | 107 ns | ✅ |
+| `RegisterFile_tb` | Reloj; entradas en flanco ↓; acceso jerárquico | 20 | 107 ns | ✅ |
 | `ALU_tb` | Control y operandos cada 10 ns | 22 | 220 ns | ✅ |
-| `MIPS_tb` | Reloj; el procesador ejecuta el programa de clase solo; acceso jerárquico | Reset + 26 ciclos + 32 registros | 270 ns | ✅ |
+| `MIPS_tb` | Reloj; el procesador ejecuta el programa de clase solo; acceso jerárquico | 26 ciclos + 32 registros | 270 ns | ✅ |
 
 ### 8.3 Comandos
 
@@ -1228,7 +1230,7 @@ plantilla: `iverilog -o salida.vvp *.v` y `vvp salida.vvp`. Compila igual porque
 | `===` / `!==` | Testbenches | Comparación exacta de cuatro estados (0, 1, `x`, `z`) |
 | Wires de campos en el testbench | `IMEM_tb`, `PC_IMEM_tb` | `wire [5:0] opcode = instruction[31:26]` hace visible cada campo en GTKWave |
 | Referencia jerárquica | `RegisterFile_tb`, `MIPS_tb` | `uut.registers[i]`, `uut.rf.registers[i]` y `uut.RegDst` inspeccionan el estado y las señales internas sin añadir puertos |
-| `$timeformat(-9, 0, " ns", 6)` | `PC_tb`, `PC_IMEM_tb`, `RegisterFile_tb`, `MIPS_tb` | `%t` en ns enteros: la consola se lee igual que el eje de GTKWave |
+| `t=%3d ns` con `$time` | `PC_tb`, `RegisterFile_tb` | `$time` da ns enteros con `` `timescale 1ns ``: la consola se lee igual que el eje de GTKWave |
 
 ---
 
@@ -1240,7 +1242,7 @@ plantilla: `iverilog -o salida.vvp *.v` y `vvp salida.vvp`. Compila igual porque
 | :---: | :--- | :--- | :--- | :--- |
 | D1 | `funct` de las **instrucciones binarias de clase** (ADD `100000`, SUB `100010`, MUL `011000`, DIV `011010`; coinciden con la `.xlsx`); MOV conserva `100011` del enunciado | La tabla del enunciado de ALUControl (SUB `100100`, MUL `100001`, DIV `100010`), usada hasta la Entrega 3 | El procesador debe ejecutar las instrucciones de clase tal como vienen; con la tabla del enunciado, `SUB` se ejecutaría como DIV | IMEM, ALUControl |
 | D2 | `ALUOp`: `00` MOVI, `01` ADDI, `10` R, `11` SUBI | `00` para todas las I | Con `00`, ADDI y SUBI harían MOVI; así se definen los 4 valores | ControlUnit, ALUControl |
-| D3 | Tabla de control sin `x`; JUMP y opcodes no definidos con `RegWrite = 0` | `x` como «no importa» | El testbench puede usar `!==`; no se propagan `x`; los opcodes inválidos son un `nop` | ControlUnit |
+| D3 | Tabla de control sin `x`; JUMP y opcodes no definidos con `RegWrite = 0` | `x` como «no importa» | El testbench puede usar `===`; no se propagan `x`; los opcodes inválidos son un `nop` | ControlUnit |
 | D4 | ALU con signo; `/0 → 0`; control no definido → 0 | Sin signo; `/0 → x` | Hay resultados negativos (`$13 = −25`); evita `x` en el banco | ALU |
 | D5 | IMEM de 1024 palabras (`addr[9:0]`); palabras sin programa en `0` y fuera de 0–1023 lee `0` | Solo `addr[9:0]` (1024 vuelve a 0); palabras en `x` | La plantilla final pide 1024 palabras. Con `0` (NOP), tras `JUMP 1024` los registros quedan congelados; con la vuelta, el programa se reiniciaría | IMEM |
 | D6 | Direccionamiento por palabra: `PC + 1` | Por byte: `PC + 4` | Lo fija la plantilla; la dirección es el índice del arreglo | PC, IMEM, siguiente PC |

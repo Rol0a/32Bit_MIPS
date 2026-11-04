@@ -116,18 +116,16 @@ memoria y allí solo lee NOPs.
 
 ## Testbench (`IMEM_tb.v`)
 - Los campos se declaran como `wire` (`opcode = instruction[31:26]`, etc.) para verlos en GTKWave.
-- Tarea `leer(dirección, esperado, caso)`: pone la dirección, espera 10 ns y compara con `!==`, así una `x`
-  también cuenta como error. Imprime dos líneas:
-  1. La instrucción con los campos separados por `_` según su formato, su valor en hex, el esperado,
-     `OK`/`ERROR` y el mnemónico.
-  2. Los campos por nombre. El inmediato también se muestra en decimal con signo y la dirección del salto en
-     decimal.
-- El formato se reconoce por el opcode: `000000` es R, `000010` es J y el resto es I.
+- Tarea `leer(dirección, esperado, caso)`: pone la dirección, espera 10 ns y compara con `===`, así una `x`
+  también cuenta como error. Un solo `$display` imprime dos líneas:
+  1. La instrucción en binario, su valor en hex, el esperado, `OK`/`ERROR` y el mnemónico.
+  2. Los ocho campos por nombre, sin distinguir el formato: como en GTKWave, hay que leerlos según el `opcode`.
+     El inmediato va en decimal con signo y la dirección en decimal.
 - El esperado se copia a mano de la tabla de instrucciones de clase, no se lee de la memoria. Así, un error de
   copia en `IMEM.v` aparece como `ERROR`.
 - 31 lecturas de 10 ns (310 ns en total): las direcciones 0 a 25, dos palabras sin programa (26 y 1023) y tres
   fuera de la memoria (1024, 1025 y 2048).
-- Al final imprime el total de lecturas y si hubo errores.
+- No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
 - `$dumpfile("IMEM_tb.vcd")` y `$dumpvars(0, IMEM_tb)`.
 
 ## Casos de prueba (resultados de la simulación)
@@ -148,71 +146,69 @@ El testbench lee las 26 direcciones del programa: **las 31 lecturas coinciden co
 
 ### Salida de la consola
 ```
-=== Testbench IMEM ===
-addr=   0  I  Instr=001010_00000_00001_0000000000001111    hex=2801000f  esperado=2801000f  OK     #1  MOVI $1, 15
-              opcode=001010 rs=00000 rt=00001 immediate=0000000000001111 (15)
-addr=   1  I  Instr=001010_00000_00010_0000000000010100    hex=28020014  esperado=28020014  OK     #2  MOVI $2, 20
-              opcode=001010 rs=00000 rt=00010 immediate=0000000000010100 (20)
-addr=   2  I  Instr=001010_00000_00011_0000000000110010    hex=28030032  esperado=28030032  OK     #3  MOVI $3, 50
-              opcode=001010 rs=00000 rt=00011 immediate=0000000000110010 (50)
-addr=   3  I  Instr=001010_00000_00100_0000000000000101    hex=28040005  esperado=28040005  OK     #4  MOVI $4, 5
-              opcode=001010 rs=00000 rt=00100 immediate=0000000000000101 (5)
-addr=   4  I  Instr=001010_00000_00101_0000000000000010    hex=28050002  esperado=28050002  OK     #5  MOVI $5, 2
-              opcode=001010 rs=00000 rt=00101 immediate=0000000000000010 (2)
-addr=   5  R  Instr=000000_00001_00010_00110_00000_100000  hex=00223020  esperado=00223020  OK     #6  ADD $6, $1, $2
-              opcode=000000 rs=00001 rt=00010 rd=00110 shamt=00000 funct=100000
-addr=   6  R  Instr=000000_00011_00001_00111_00000_100010  hex=00613822  esperado=00613822  OK     #7  SUB $7, $3, $1
-              opcode=000000 rs=00011 rt=00001 rd=00111 shamt=00000 funct=100010
-addr=   7  R  Instr=000000_00010_00011_01000_00000_011000  hex=00434018  esperado=00434018  OK     #8  MUL $8, $2, $3
-              opcode=000000 rs=00010 rt=00011 rd=01000 shamt=00000 funct=011000
-addr=   8  R  Instr=000000_00011_00010_01001_00000_011010  hex=0062481a  esperado=0062481a  OK     #9  DIV $9, $3, $2
-              opcode=000000 rs=00011 rt=00010 rd=01001 shamt=00000 funct=011010
-addr=   9  I  Instr=001000_00001_00001_0000000000001010    hex=2021000a  esperado=2021000a  OK     #10 ADDI $1, $1, 10
-              opcode=001000 rs=00001 rt=00001 immediate=0000000000001010 (10)
-addr=  10  I  Instr=001001_00010_00010_0000000000000100    hex=24420004  esperado=24420004  OK     #11 SUBI $2, $2, 4
-              opcode=001001 rs=00010 rt=00010 immediate=0000000000000100 (4)
-addr=  11  R  Instr=000000_00110_00100_01010_00000_100000  hex=00c45020  esperado=00c45020  OK     #12 ADD $10, $6, $4
-              opcode=000000 rs=00110 rt=00100 rd=01010 shamt=00000 funct=100000
-addr=  12  R  Instr=000000_00110_00101_01011_00000_011000  hex=00c55818  esperado=00c55818  OK     #13 MUL $11, $6, $5
-              opcode=000000 rs=00110 rt=00101 rd=01011 shamt=00000 funct=011000
-addr=  13  R  Instr=000000_01010_00101_01100_00000_011010  hex=0145601a  esperado=0145601a  OK     #14 DIV $12, $10, $5
-              opcode=000000 rs=01010 rt=00101 rd=01100 shamt=00000 funct=011010
-addr=  14  I  Instr=001000_00100_00100_0000000000010100    hex=20840014  esperado=20840014  OK     #15 ADDI $4, $4, 20
-              opcode=001000 rs=00100 rt=00100 immediate=0000000000010100 (20)
-addr=  15  R  Instr=000000_00100_00011_01101_00000_100010  hex=00836822  esperado=00836822  OK     #16 SUB $13, $4, $3
-              opcode=000000 rs=00100 rt=00011 rd=01101 shamt=00000 funct=100010
-addr=  16  I  Instr=001010_00000_01110_0000000001100100    hex=280e0064  esperado=280e0064  OK     #17 MOVI $14, 100
-              opcode=001010 rs=00000 rt=01110 immediate=0000000001100100 (100)
-addr=  17  R  Instr=000000_01110_00001_01111_00000_100000  hex=01c17820  esperado=01c17820  OK     #18 ADD $15, $14, $1
-              opcode=000000 rs=01110 rt=00001 rd=01111 shamt=00000 funct=100000
-addr=  18  I  Instr=001001_00011_00011_0000000000000101    hex=24630005  esperado=24630005  OK     #19 SUBI $3, $3, 5
-              opcode=001001 rs=00011 rt=00011 immediate=0000000000000101 (5)
-addr=  19  R  Instr=000000_01111_00010_10000_00000_011000  hex=01e28018  esperado=01e28018  OK     #20 MUL $16, $15, $2
-              opcode=000000 rs=01111 rt=00010 rd=10000 shamt=00000 funct=011000
-addr=  20  I  Instr=001000_00001_10001_0000000000000001    hex=20310001  esperado=20310001  OK     #21 ADDI $17, $1, 1
-              opcode=001000 rs=00001 rt=10001 immediate=0000000000000001 (1)
-addr=  21  J  Instr=000010_00000000000000010000000000      hex=08000400  esperado=08000400  OK     #22 JUMP 1024
-              opcode=000010 address=00000000000000010000000000 (1024)
-addr=  22  R  Instr=000000_10001_00010_10010_00000_100000  hex=02229020  esperado=02229020  OK     #23 ADD $18, $17, $2
-              opcode=000000 rs=10001 rt=00010 rd=10010 shamt=00000 funct=100000
-addr=  23  R  Instr=000000_10010_00101_10011_00000_100010  hex=02459822  esperado=02459822  OK     #24 SUB $19, $18, $5
-              opcode=000000 rs=10010 rt=00101 rd=10011 shamt=00000 funct=100010
-addr=  24  I  Instr=001010_00000_10100_0000000011111111    hex=281400ff  esperado=281400ff  OK     #25 MOVI $20, 255
-              opcode=001010 rs=00000 rt=10100 immediate=0000000011111111 (255)
-addr=  25  I  Instr=001010_00000_00000_0000000011111111    hex=280000ff  esperado=280000ff  OK     #26 MOVI $0, 255
-              opcode=001010 rs=00000 rt=00000 immediate=0000000011111111 (255)
-addr=  26  R  Instr=000000_00000_00000_00000_00000_000000  hex=00000000  esperado=00000000  OK     primera palabra sin programa: 0
-              opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000
-addr=1023  R  Instr=000000_00000_00000_00000_00000_000000  hex=00000000  esperado=00000000  OK     ultima palabra del arreglo: 0
-              opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000
-addr=1024  R  Instr=000000_00000_00000_00000_00000_000000  hex=00000000  esperado=00000000  OK     1024 (JUMP 1024): fuera, lee 0
-              opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000
-addr=1025  R  Instr=000000_00000_00000_00000_00000_000000  hex=00000000  esperado=00000000  OK     1025: fuera, lee 0
-              opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000
-addr=2048  R  Instr=000000_00000_00000_00000_00000_000000  hex=00000000  esperado=00000000  OK     2048: addr[9:0] = 0, pero lee 0
-              opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000
-=== 31 lecturas, todas las pruebas OK ===
-IMEM_tb.v:131: $finish called at 310000 (1ps)
+addr=   0  Instr=00101000000000010000000000001111  hex=2801000f  esperado=2801000f  OK     #1  MOVI $1, 15
+           opcode=001010 rs=00000 rt=00001 rd=00000 shamt=00000 funct=001111 immediate=15 address=65551
+addr=   1  Instr=00101000000000100000000000010100  hex=28020014  esperado=28020014  OK     #2  MOVI $2, 20
+           opcode=001010 rs=00000 rt=00010 rd=00000 shamt=00000 funct=010100 immediate=20 address=131092
+addr=   2  Instr=00101000000000110000000000110010  hex=28030032  esperado=28030032  OK     #3  MOVI $3, 50
+           opcode=001010 rs=00000 rt=00011 rd=00000 shamt=00000 funct=110010 immediate=50 address=196658
+addr=   3  Instr=00101000000001000000000000000101  hex=28040005  esperado=28040005  OK     #4  MOVI $4, 5
+           opcode=001010 rs=00000 rt=00100 rd=00000 shamt=00000 funct=000101 immediate=5 address=262149
+addr=   4  Instr=00101000000001010000000000000010  hex=28050002  esperado=28050002  OK     #5  MOVI $5, 2
+           opcode=001010 rs=00000 rt=00101 rd=00000 shamt=00000 funct=000010 immediate=2 address=327682
+addr=   5  Instr=00000000001000100011000000100000  hex=00223020  esperado=00223020  OK     #6  ADD $6, $1, $2
+           opcode=000000 rs=00001 rt=00010 rd=00110 shamt=00000 funct=100000 immediate=12320 address=2240544
+addr=   6  Instr=00000000011000010011100000100010  hex=00613822  esperado=00613822  OK     #7  SUB $7, $3, $1
+           opcode=000000 rs=00011 rt=00001 rd=00111 shamt=00000 funct=100010 immediate=14370 address=6371362
+addr=   7  Instr=00000000010000110100000000011000  hex=00434018  esperado=00434018  OK     #8  MUL $8, $2, $3
+           opcode=000000 rs=00010 rt=00011 rd=01000 shamt=00000 funct=011000 immediate=16408 address=4407320
+addr=   8  Instr=00000000011000100100100000011010  hex=0062481a  esperado=0062481a  OK     #9  DIV $9, $3, $2
+           opcode=000000 rs=00011 rt=00010 rd=01001 shamt=00000 funct=011010 immediate=18458 address=6440986
+addr=   9  Instr=00100000001000010000000000001010  hex=2021000a  esperado=2021000a  OK     #10 ADDI $1, $1, 10
+           opcode=001000 rs=00001 rt=00001 rd=00000 shamt=00000 funct=001010 immediate=10 address=2162698
+addr=  10  Instr=00100100010000100000000000000100  hex=24420004  esperado=24420004  OK     #11 SUBI $2, $2, 4
+           opcode=001001 rs=00010 rt=00010 rd=00000 shamt=00000 funct=000100 immediate=4 address=4325380
+addr=  11  Instr=00000000110001000101000000100000  hex=00c45020  esperado=00c45020  OK     #12 ADD $10, $6, $4
+           opcode=000000 rs=00110 rt=00100 rd=01010 shamt=00000 funct=100000 immediate=20512 address=12865568
+addr=  12  Instr=00000000110001010101100000011000  hex=00c55818  esperado=00c55818  OK     #13 MUL $11, $6, $5
+           opcode=000000 rs=00110 rt=00101 rd=01011 shamt=00000 funct=011000 immediate=22552 address=12933144
+addr=  13  Instr=00000001010001010110000000011010  hex=0145601a  esperado=0145601a  OK     #14 DIV $12, $10, $5
+           opcode=000000 rs=01010 rt=00101 rd=01100 shamt=00000 funct=011010 immediate=24602 address=21323802
+addr=  14  Instr=00100000100001000000000000010100  hex=20840014  esperado=20840014  OK     #15 ADDI $4, $4, 20
+           opcode=001000 rs=00100 rt=00100 rd=00000 shamt=00000 funct=010100 immediate=20 address=8650772
+addr=  15  Instr=00000000100000110110100000100010  hex=00836822  esperado=00836822  OK     #16 SUB $13, $4, $3
+           opcode=000000 rs=00100 rt=00011 rd=01101 shamt=00000 funct=100010 immediate=26658 address=8611874
+addr=  16  Instr=00101000000011100000000001100100  hex=280e0064  esperado=280e0064  OK     #17 MOVI $14, 100
+           opcode=001010 rs=00000 rt=01110 rd=00000 shamt=00001 funct=100100 immediate=100 address=917604
+addr=  17  Instr=00000001110000010111100000100000  hex=01c17820  esperado=01c17820  OK     #18 ADD $15, $14, $1
+           opcode=000000 rs=01110 rt=00001 rd=01111 shamt=00000 funct=100000 immediate=30752 address=29456416
+addr=  18  Instr=00100100011000110000000000000101  hex=24630005  esperado=24630005  OK     #19 SUBI $3, $3, 5
+           opcode=001001 rs=00011 rt=00011 rd=00000 shamt=00000 funct=000101 immediate=5 address=6488069
+addr=  19  Instr=00000001111000101000000000011000  hex=01e28018  esperado=01e28018  OK     #20 MUL $16, $15, $2
+           opcode=000000 rs=01111 rt=00010 rd=10000 shamt=00000 funct=011000 immediate=-32744 address=31621144
+addr=  20  Instr=00100000001100010000000000000001  hex=20310001  esperado=20310001  OK     #21 ADDI $17, $1, 1
+           opcode=001000 rs=00001 rt=10001 rd=00000 shamt=00000 funct=000001 immediate=1 address=3211265
+addr=  21  Instr=00001000000000000000010000000000  hex=08000400  esperado=08000400  OK     #22 JUMP 1024
+           opcode=000010 rs=00000 rt=00000 rd=00000 shamt=10000 funct=000000 immediate=1024 address=1024
+addr=  22  Instr=00000010001000101001000000100000  hex=02229020  esperado=02229020  OK     #23 ADD $18, $17, $2
+           opcode=000000 rs=10001 rt=00010 rd=10010 shamt=00000 funct=100000 immediate=-28640 address=35819552
+addr=  23  Instr=00000010010001011001100000100010  hex=02459822  esperado=02459822  OK     #24 SUB $19, $18, $5
+           opcode=000000 rs=10010 rt=00101 rd=10011 shamt=00000 funct=100010 immediate=-26590 address=38115362
+addr=  24  Instr=00101000000101000000000011111111  hex=281400ff  esperado=281400ff  OK     #25 MOVI $20, 255
+           opcode=001010 rs=00000 rt=10100 rd=00000 shamt=00011 funct=111111 immediate=255 address=1310975
+addr=  25  Instr=00101000000000000000000011111111  hex=280000ff  esperado=280000ff  OK     #26 MOVI $0, 255
+           opcode=001010 rs=00000 rt=00000 rd=00000 shamt=00011 funct=111111 immediate=255 address=255
+addr=  26  Instr=00000000000000000000000000000000  hex=00000000  esperado=00000000  OK     primera palabra sin programa: 0
+           opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000 immediate=0 address=0
+addr=1023  Instr=00000000000000000000000000000000  hex=00000000  esperado=00000000  OK     ultima palabra del arreglo: 0
+           opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000 immediate=0 address=0
+addr=1024  Instr=00000000000000000000000000000000  hex=00000000  esperado=00000000  OK     1024 (JUMP 1024): fuera, lee 0
+           opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000 immediate=0 address=0
+addr=1025  Instr=00000000000000000000000000000000  hex=00000000  esperado=00000000  OK     1025: fuera, lee 0
+           opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000 immediate=0 address=0
+addr=2048  Instr=00000000000000000000000000000000  hex=00000000  esperado=00000000  OK     2048: addr[9:0] = 0, pero lee 0
+           opcode=000000 rs=00000 rt=00000 rd=00000 shamt=00000 funct=000000 immediate=0 address=0
+IMEM_tb.v:62: $finish called at 310000 (1ps)
 ```
 
 ## Capturas

@@ -59,14 +59,15 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 
 | Carpeta | Contenido | Estado |
 | :--- | :--- | :--- |
-| [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado · capturas listas |
+| [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (un solo `$display`) |
 | [`02_IMEM/`](02_IMEM/) | Entrega 1 · Ejercicio 2 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
 | [`03_PC_IMEM/`](03_PC_IMEM/) | Entrega 1 · Ejercicio 3 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
-| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · capturas listas |
-| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · capturas listas |
+| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (un solo `$display`) |
+| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · repetir `consola.png` (un solo `$display`) |
 | [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 · `funct` de clase | ✅ Verificado · repetir `consola.png` (`funct` nuevos) |
 | [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | ✅ Verificado · falta `consola.png` |
 | [`08_MIPS/`](08_MIPS/) | Entrega Final 1 · Procesador completo | ✅ Verificado · falta `consola.png` y foto del CMD |
+| [`09_NanoBoard/`](09_NanoBoard/) | Entrega Final 2 · Procesador en la NanoBoard-3000XN (un solo `.v` para Altium) | ✅ Simulado · falta probarlo en la placa |
 
 <details>
 <summary><strong>Ver árbol completo de archivos</strong></summary>
@@ -109,10 +110,14 @@ P1/
 │   ├── README.md
 │   ├── RegisterFile.v
 │   └── RegisterFile_tb.v
-└── 08_MIPS/                        # Reutiliza los seis módulos
-    ├── README.md
-    ├── MIPS.v                      # Módulo superior: instancias + assign
-    └── MIPS_tb.v
+├── 08_MIPS/                        # Reutiliza los seis módulos
+│   ├── README.md
+│   ├── MIPS.v                      # Módulo superior: instancias + assign
+│   └── MIPS_tb.v
+└── 09_NanoBoard/                   # Entrega Final 2: archivo único para Altium
+    ├── README.md                   # Pines, uso en la placa, decisiones, cómo agregar instrucciones
+    ├── MIPS_NanoBoard.v            # Todo el procesador + instrumentos + Run/Step (el que va a Altium)
+    └── MIPS_NanoBoard_tb.v         # Hace el papel de la placa y los instrumentos (solo simulación)
 ```
 
 </details>
@@ -218,13 +223,12 @@ La tabla de ALUControl fija esta codificación y la ALU la usa tal cual.
 - [x] **`04_ControlUnit`** — Decodificador de opcode con valores por defecto antes del `case`. 12/12 pruebas OK.
 - [x] **`05_ALU`** — Con signo, `/0 → 0`, control no definido → `0`, bandera `zero`. 22/22 pruebas OK.
 - [x] **`06_ALUControl`** — `always @(*)` con valor por defecto y `case` sobre `ALUOp` y `funct` (los de clase). 17/17 pruebas OK.
-- [x] **`07_RegisterFile`** — 32 × 32 bits, lectura asíncrona, escritura síncrona, `$0` siempre en `0`. 19/19 pruebas OK.
+- [x] **`07_RegisterFile`** — 32 × 32 bits, lectura asíncrona, escritura síncrona, `$0` siempre en `0`. 20/20 pruebas OK.
 
 ### Pendiente para entregar
 
-- [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir `02_IMEM`, `03_PC_IMEM` y
-  `06_ALUControl` (cambiaron con el programa de clase) y tomar las de `07_RegisterFile` y `08_MIPS`. La de
-  `04_ControlUnit` empieza con un intento fallido (`vvp ControlUnit.vvp`); conviene repetirla o recortarla.
+- [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir las de `01_PC` a `06_ALUControl`
+  (los testbenches ahora imprimen con un solo `$display`) y tomar las de `07_RegisterFile` y `08_MIPS`.
 - [ ] Llenar las plantillas `.docx` con el código, las capturas y las tablas de casos de cada README.
   En la entrega 3, explicar las filas 7, 10 y 11 de la tabla de ALUControl (ver
   [Diferencias con las plantillas](#diferencias-con-las-plantillas)).
@@ -236,13 +240,23 @@ Todo lo que pide la plantilla está en [`08_MIPS/README.md`](08_MIPS/README.md#e
 - [x] Archivos `.v`: `PC.v`, `IMEM.v`, `ControlUnit.v`, `ALUControl.v`, `RegisterFile.v`, `ALU.v`, el top module
   `MIPS.v` y el testbench `MIPS_tb.v`. Juntos en una carpeta compilan con `iverilog -o salida.vvp *.v`.
 - [x] IMEM de 1024 palabras con las 26 instrucciones de clase copiadas sin cambios.
-- [x] Testbench con el formato sugerido (`PC=… Instr=…`, campos, señales, `rd1`/`rd2`/`ALU` y `$rd<=valor`),
+- [x] Testbench con una línea por instrucción (`PC=… Instr=…`, señales, `rd1`/`rd2`/`ALU` y `$rd<=valor`),
   26 ciclos explicados en un comentario, y los 32 registros al final. 0 errores.
 - [x] `gtkwave.png` con reloj, PC, instrucción, control, operandos, ALU, registro escrito y `$1`–`$20`.
 - [x] Valores esperados a mano (secciones 8 y 10) y decisiones de diseño (sección 9) redactadas en el README.
 - [ ] `consola.png` de `08_MIPS` (varias capturas consecutivas si no cabe).
-- [ ] Foto del CMD con la tabla «Valores finales de los registros».
+- [ ] Foto del CMD con las 32 filas `registro final`.
 - [ ] Llenar `Entrega_Final_Procesador_MIPS.docx`: integrantes, módulos, diagrama, código, capturas y tablas.
+
+### Entrega Final 2 · Presentación en la NanoBoard-3000XN
+
+Todo está en [`09_NanoBoard/README.md`](09_NanoBoard/README.md). Altium Designer 14.3, FPGA Spartan-3AN.
+
+- [x] `MIPS_NanoBoard.v`: un solo archivo con el procesador, la IMEM escribible y legible por el instrumento 1,
+  la lectura de registros por el instrumento 2 y Run/Step con el mismo enable para el PC y el banco.
+- [x] Testbench que hace el papel de la placa: carga, 23 pasos con rebotes, 32 registros, Run y divisor. 0 errores.
+- [ ] Build en Altium y prueba en la placa (tabla de la sección 5 y registros finales).
+- [ ] Capturas y llenar `Entrega_Final_2_Fisico_NanoBoard3000.docx`.
 
 ### Fase 4 · Integración del datapath
 
@@ -252,9 +266,8 @@ Los seis módulos se conectan en [`08_MIPS`](08_MIPS/) sin modificarlos. Detalle
 - [x] **`08_MIPS/MIPS.v`** — Módulo superior: seis instancias con el mismo `clk` y `reset` para el PC y el banco;
   campos, extensión de signo, mux `RegDst`, mux `ALUSrc`, `PC + 1`, mux `Jump` y write-back, todo con `assign`.
   Compila sin advertencias con `iverilog -Wall`.
-- [x] **`08_MIPS/MIPS_tb.v`** — Reset, 26 ciclos del programa de clase comparados señal por señal con
-  [Arquitectura §7](docs/Arquitectura.md#s7), registro escrito tras cada flanco y estado final de los 32
-  registros. Todo OK; seis de siete mutaciones detectadas (la extensión con ceros no se nota: el programa de
+- [x] **`08_MIPS/MIPS_tb.v`** — 26 ciclos del programa de clase comparados señal por señal con
+  [Arquitectura §7](docs/Arquitectura.md#s7) y estado final de los 32 registros. Todo OK; seis de siete mutaciones detectadas (la extensión con ceros no se nota: el programa de
   clase no tiene inmediatos negativos).
 
 ### Flujo de trabajo por módulo

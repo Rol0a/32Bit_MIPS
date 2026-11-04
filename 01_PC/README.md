@@ -1,6 +1,7 @@
 # 01 — Program Counter (PC)
 
-**Entrega 1 · Ejercicio 1** · Estado: ✅ implementado y verificado (10/10 ciclos OK) · capturas listas
+**Entrega 1 · Ejercicio 1** · Estado: ✅ implementado y verificado (10/10 ciclos OK) ·
+`gtkwave.png` lista, `consola.png` por repetir (un solo `$display`)
 
 ## Objetivo
 Registro de 32 bits que guarda la dirección de la instrucción actual y la actualiza en cada ciclo de reloj.
@@ -23,8 +24,8 @@ Registro de 32 bits que guarda la dirección de la instrucción actual y la actu
 - Inicia con `clk = 0`, `reset = 1`, `next_pc = 100`; suelta `reset` en el ciclo 3.
 - Las entradas cambian en el flanco de bajada (lejos del flanco activo) y se imprime 1 ns después de
   cada flanco de subida, cuando el `<=` del PC ya se asentó.
-- La tarea `verificar` compara `current_pc` con el esperado (con `!==`, así una `x` cuenta como error)
-  e imprime `OK`/`ERROR`; al final se muestra el total de errores.
+- La tarea `verificar` tiene el único `$display` del archivo: compara `current_pc` con el esperado (con `===`,
+  así una `x` cuenta como error) e imprime `OK`/`ERROR`. No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
 - `$dumpfile("PC_tb.vcd")` y `$dumpvars(0, PC_tb)`.
 
 ## Casos de prueba (resultados de la simulación)
@@ -38,29 +39,29 @@ Registro de 32 bits que guarda la dirección de la instrucción actual y la actu
 | 5 | Reset a mitad de ejecución: lo regresa a 0 y luego vuelve a avanzar | 1 → 0 | 7 → 1 | 0 → 1 | 0 → 1 | ✅ |
 | 6 | Adicional: dirección con los 32 bits en 1 se guarda completa | 0 | 4294967295 (`0xFFFFFFFF`) | 4294967295 | 4294967295 | ✅ |
 
-Además, antes del primer flanco el PC vale `x` (el reset es síncrono), como advierte la plantilla.
+Además, antes del primer flanco el PC vale `x` (el reset es síncrono), como advierte la plantilla: la primera
+línea de la consola lo comprueba.
 
 ### Salida de la consola
 ```
-=== Testbench PC ===
-t=  1 ns  antes del primer flanco: current_pc=x (x: el PC aun no se ha reiniciado)
-ciclo  1  t=  6 ns  reset=1  next_pc=       100  ->  current_pc=         0  esperado=         0  OK     Caso 1: reset activo
-ciclo  2  t= 16 ns  reset=1  next_pc=       200  ->  current_pc=         0  esperado=         0  OK     Caso 1: reset activo
-ciclo  3  t= 26 ns  reset=0  next_pc=         1  ->  current_pc=         1  esperado=         1  OK     Caso 2: soltar reset
-ciclo  4  t= 36 ns  reset=0  next_pc=         2  ->  current_pc=         2  esperado=         2  OK     Caso 3: avance normal
-ciclo  5  t= 46 ns  reset=0  next_pc=         3  ->  current_pc=         3  esperado=         3  OK     Caso 3: avance normal
-ciclo  6  t= 56 ns  reset=0  next_pc=         4  ->  current_pc=         4  esperado=         4  OK     Caso 3: avance normal
-          t= 62 ns  reset=0  next_pc=        50  ->  current_pc=         4  esperado=         4  OK     Caso 4: cambio entre flancos
-          t= 64 ns  reset=0  next_pc=        60  ->  current_pc=         4  esperado=         4  OK     Caso 4: cambio entre flancos
-ciclo  7  t= 66 ns  reset=0  next_pc=        60  ->  current_pc=        60  esperado=        60  OK     Caso 4: carga en el flanco
-ciclo  8  t= 76 ns  reset=0  next_pc=4294967295  ->  current_pc=4294967295  esperado=4294967295  OK     Caso 6: 32 bits completos
-ciclo  9  t= 86 ns  reset=1  next_pc=         7  ->  current_pc=         0  esperado=         0  OK     Caso 5: reset a mitad de ejecucion
-ciclo 10  t= 96 ns  reset=0  next_pc=         1  ->  current_pc=         1  esperado=         1  OK     Caso 5: avanza tras el reset
-=== 10 ciclos, todas las pruebas OK ===
+t=  1 ns  reset=1  next_pc=       100  ->  current_pc=         x  esperado=         x  OK     antes del primer flanco: aun sin reset
+t=  6 ns  reset=1  next_pc=       100  ->  current_pc=         0  esperado=         0  OK     Caso 1: reset activo
+t= 16 ns  reset=1  next_pc=       200  ->  current_pc=         0  esperado=         0  OK     Caso 1: reset activo
+t= 26 ns  reset=0  next_pc=         1  ->  current_pc=         1  esperado=         1  OK     Caso 2: soltar reset
+t= 36 ns  reset=0  next_pc=         2  ->  current_pc=         2  esperado=         2  OK     Caso 3: avance normal
+t= 46 ns  reset=0  next_pc=         3  ->  current_pc=         3  esperado=         3  OK     Caso 3: avance normal
+t= 56 ns  reset=0  next_pc=         4  ->  current_pc=         4  esperado=         4  OK     Caso 3: avance normal
+t= 62 ns  reset=0  next_pc=        50  ->  current_pc=         4  esperado=         4  OK     Caso 4: cambio entre flancos
+t= 64 ns  reset=0  next_pc=        60  ->  current_pc=         4  esperado=         4  OK     Caso 4: cambio entre flancos
+t= 66 ns  reset=0  next_pc=        60  ->  current_pc=        60  esperado=        60  OK     Caso 4: carga en el flanco
+t= 76 ns  reset=0  next_pc=4294967295  ->  current_pc=4294967295  esperado=4294967295  OK     Caso 6: 32 bits completos
+t= 86 ns  reset=1  next_pc=         7  ->  current_pc=         0  esperado=         0  OK     Caso 5: reset a mitad de ejecucion
+t= 96 ns  reset=0  next_pc=         1  ->  current_pc=         1  esperado=         1  OK     Caso 5: avanza tras el reset
+PC_tb.v:42: $finish called at 100000 (1ps)
 ```
 
 ## Capturas
-- `consola.png`: comando de compilación/ejecución y una línea por ciclo.
+- `consola.png` (por repetir): comando de compilación/ejecución y una línea por ciclo.
 - `gtkwave.png`: `clk`, `reset`, `next_pc`, `current_pc` en **decimal**, *Zoom Fit*.
 
 ## Comandos

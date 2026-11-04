@@ -153,13 +153,13 @@ El recorrido completo de una instrucción por el datapath está en el
 
 ## Testbench (`ALUControl_tb.v`)
 - Tarea `probar(op, fn, esperado, caso)`: aplica las entradas, espera 10 ns y compara `alu_control` con el
-  esperado usando `!==`, así una `x` también cuenta como error. Imprime una línea por prueba con el formato
+  esperado usando `===`, así una `x` también cuenta como error. Imprime una línea por prueba con el formato
   del enunciado (`ALUOp=10, funct=100000 -> alu_control=0010`), el esperado, `OK`/`ERROR` y el caso.
 - No usa reloj: el módulo es combinacional, basta con esperar a que la salida se asiente.
 - Las pruebas 1–11 son los casos 1–11 de la plantilla, en el mismo orden. En las instrucciones I, `funct`
   lleva los 6 bits bajos del inmediato de una instrucción real del programa de clase (`MOVI $1, 15` →
   `001111`, `ADDI $1, $1, 10` → `001010`, `SUBI $2, $2, 4` → `000100`). Las pruebas 12–17 son adicionales.
-- Al final imprime el total de pruebas y si hubo errores.
+- No hay línea de resumen: un fallo se ve como `ERROR` en su fila. Las filas no llevan número: la prueba N es la fila N de la consola.
 - `$dumpfile("ALUControl_tb.vcd")` y `$dumpvars(0, ALUControl_tb)`.
 - **Comprobación del testbench:** con tres errores introducidos a propósito en `ALUControl.v` (quitar el
   valor por defecto, ADDI como MOVI, MOV mal codificado) el testbench reporta 5, 2 y 1 errores. Detecta los
@@ -195,26 +195,24 @@ las pruebas 12–17.
 
 ### Salida de la consola
 ```
-=== Testbench ALUControl ===
- 1  ALUOp=10, funct=100000 -> alu_control=0010 | esperado=0010  OK     Caso 1: ADD
- 2  ALUOp=10, funct=100010 -> alu_control=0110 | esperado=0110  OK     Caso 2: SUB
- 3  ALUOp=10, funct=011000 -> alu_control=1000 | esperado=1000  OK     Caso 3: MULT
- 4  ALUOp=10, funct=011010 -> alu_control=1001 | esperado=1001  OK     Caso 4: DIV
- 5  ALUOp=10, funct=100011 -> alu_control=0001 | esperado=0001  OK     Caso 5: MOV
- 6  ALUOp=00, funct=001111 -> alu_control=0000 | esperado=0000  OK     Caso 6: MOVI (funct = bits de imm 15)
- 7  ALUOp=00, funct=001010 -> alu_control=0000 | esperado=0000  OK     Caso 7: ADDI con ALUOp=00 da MOVI
- 8  ALUOp=00, funct=100000 -> alu_control=0000 | esperado=0000  OK     Caso 8: ALUOp=00 ignora funct de ADD
- 9  ALUOp=10, funct=111111 -> alu_control=1111 | esperado=1111  OK     Caso 9: funct no definido
-10  ALUOp=01, funct=001010 -> alu_control=0010 | esperado=0010  OK     Caso 10: ALUOp=01, ADDI (suma)
-11  ALUOp=11, funct=000100 -> alu_control=0110 | esperado=0110  OK     Caso 11: ALUOp=11, SUBI (resta)
-12  ALUOp=10, funct=000000 -> alu_control=1111 | esperado=1111  OK     Adicional: funct 000000 (palabra 0)
-13  ALUOp=10, funct=100100 -> alu_control=1111 | esperado=1111  OK     Adicional: 100100 (SUB del enunciado)
-14  ALUOp=10, funct=100001 -> alu_control=1111 | esperado=1111  OK     Adicional: 100001 (MUL del enunciado)
-15  ALUOp=01, funct=100010 -> alu_control=0010 | esperado=0010  OK     Adicional: ADDI con funct de SUB
-16  ALUOp=11, funct=100000 -> alu_control=0110 | esperado=0110  OK     Adicional: SUBI con funct de ADD
-17  ALUOp=xx, funct=100000 -> alu_control=1111 | esperado=1111  OK     Adicional: ALUOp x
-=== 17 pruebas, todas las pruebas OK ===
-ALUControl_tb.v:105: $finish called at 170000 (1ps)
+ALUOp=10, funct=100000 -> alu_control=0010 | esperado=0010  OK     Caso 1: ADD
+ALUOp=10, funct=100010 -> alu_control=0110 | esperado=0110  OK     Caso 2: SUB
+ALUOp=10, funct=011000 -> alu_control=1000 | esperado=1000  OK     Caso 3: MULT
+ALUOp=10, funct=011010 -> alu_control=1001 | esperado=1001  OK     Caso 4: DIV
+ALUOp=10, funct=100011 -> alu_control=0001 | esperado=0001  OK     Caso 5: MOV
+ALUOp=00, funct=001111 -> alu_control=0000 | esperado=0000  OK     Caso 6: MOVI (funct = bits de imm 15)
+ALUOp=00, funct=001010 -> alu_control=0000 | esperado=0000  OK     Caso 7: ADDI con ALUOp=00 da MOVI
+ALUOp=00, funct=100000 -> alu_control=0000 | esperado=0000  OK     Caso 8: ALUOp=00 ignora funct de ADD
+ALUOp=10, funct=111111 -> alu_control=1111 | esperado=1111  OK     Caso 9: funct no definido
+ALUOp=01, funct=001010 -> alu_control=0010 | esperado=0010  OK     Caso 10: ALUOp=01, ADDI (suma)
+ALUOp=11, funct=000100 -> alu_control=0110 | esperado=0110  OK     Caso 11: ALUOp=11, SUBI (resta)
+ALUOp=10, funct=000000 -> alu_control=1111 | esperado=1111  OK     Adicional: funct 000000 (palabra 0)
+ALUOp=10, funct=100100 -> alu_control=1111 | esperado=1111  OK     Adicional: 100100 (SUB del enunciado)
+ALUOp=10, funct=100001 -> alu_control=1111 | esperado=1111  OK     Adicional: 100001 (MUL del enunciado)
+ALUOp=01, funct=100010 -> alu_control=0010 | esperado=0010  OK     Adicional: ADDI con funct de SUB
+ALUOp=11, funct=100000 -> alu_control=0110 | esperado=0110  OK     Adicional: SUBI con funct de ADD
+ALUOp=xx, funct=100000 -> alu_control=1111 | esperado=1111  OK     Adicional: ALUOp x
+ALUControl_tb.v:40: $finish called at 170000 (1ps)
 ```
 
 ## Capturas

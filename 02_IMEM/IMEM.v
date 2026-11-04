@@ -1,34 +1,20 @@
-// =============================================================================
-// IMEM.v — Memoria de Instrucciones
-// Memoria de solo lectura de 1024 palabras de 32 bits con el programa de clase
-// (26 instrucciones) precargado.
-// Especificación, decisiones y casos de prueba: README.md de esta carpeta.
-// =============================================================================
+// IMEM.v — Memoria de instrucciones: 1024 palabras de 32 bits con el programa de clase.
+// Especificación y decisiones: README.md de esta carpeta.
 `timescale 1ns / 1ps
 
 module IMEM (
-    input  [31:0] addr,          // dirección de la instrucción (por palabra)
+    input  [31:0] addr,          // dirección de palabra
     output [31:0] instruction    // instrucción leída
 );
 
-    // 1024 palabras de 32 bits: índices 0 a 1023 (10 bits de dirección).
     reg [31:0] memory [0:1023];
     integer i;
 
-    // Lectura combinacional: la instrucción cambia en cuanto cambia addr, sin
-    // esperar al reloj. Solo existen las direcciones 0 a 1023. Fuera de ese
-    // rango (por ejemplo, después de JUMP 1024) la memoria devuelve 0. Sin esa
-    // comprobación, addr[9:0] de 1024 sería 0 y el programa volvería a
-    // empezar. La palabra 0 es una NOP: tipo R con funct 000000 (ALUControl
-    // da 1111, la ALU da 0) y destino $0, que el banco nunca escribe.
+    // Lectura combinacional. Fuera de la memoria lee 0 (NOP): JUMP 1024 no reinicia el programa.
     assign instruction = (addr < 32'd1024) ? memory[addr[9:0]] : 32'd0;
 
-    // Programa de clase. Los campos van separados con _ según el formato:
-    //   R: opcode_rs_rt_rd_shamt_funct
-    //   I: opcode_rs_rt_immediate
-    //   J: opcode_address
-    // Las palabras 26 a 1023 se ponen en 0 antes de cargar el programa: sin
-    // programa también leen la NOP, no x.
+    // Programa de clase, con los campos separados por _ según el formato:
+    //   R: opcode_rs_rt_rd_shamt_funct    I: opcode_rs_rt_immediate    J: opcode_address
     initial begin
         for (i = 0; i < 1024; i = i + 1)
             memory[i] = 32'd0;

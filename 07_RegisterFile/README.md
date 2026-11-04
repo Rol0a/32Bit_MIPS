@@ -1,6 +1,6 @@
 # 07 — Banco de Registros (RegisterFile)
 
-**Entrega 3 · Ejercicios 3–4** · Estado: ✅ implementado y verificado (19/19 pruebas OK) · `gtkwave.png` lista,
+**Entrega 3 · Ejercicios 3–4** · Estado: ✅ implementado y verificado (20/20 pruebas OK) · `gtkwave.png` lista,
 `consola.png` pendiente
 
 ## Objetivo
@@ -11,7 +11,7 @@ destino. `$0` vale siempre 0.
 | Archivo | Contenido |
 |---|---|
 | `RegisterFile.v` | Módulo `RegisterFile` |
-| `RegisterFile_tb.v` | Testbench `RegisterFile_tb`, con 19 pruebas automáticas en el orden de la plantilla |
+| `RegisterFile_tb.v` | Testbench `RegisterFile_tb`, con 20 pruebas automáticas en el orden de la plantilla |
 | `RegisterFile_tb.gtkw` | Vista guardada de GTKWave: reloj, control, direcciones y datos en decimal |
 
 ## Puertos
@@ -152,18 +152,24 @@ comprueba.
 ## Testbench (`RegisterFile_tb.v`)
 - Reloj de 10 ns (`always #5 clk = ~clk`): flancos de subida en t = 5, 15, 25, … ns.
 - Las entradas de escritura cambian en el flanco de bajada, lejos del flanco activo, y los registros se
-  imprimen 1 ns después del flanco de subida, cuando los `<=` ya se asentaron.
+  imprimen después del flanco de subida, cuando los `<=` ya se asentaron.
 - Tareas:
-  - `ciclo(we, dir, dato)`: un ciclo con `RegWrite = we`. Después del flanco imprime `R1`, `R2`, `R3` y `R0`
-    con el formato del enunciado (`R1=10, R2=20, R3=30, R0=0`) y, al final, el registro destino. Lee el
-    arreglo con el nombre de la instancia: `uut.registers[i]`.
+  - `ciclo(we, dir, dato)`: un ciclo con `RegWrite = we`, formado por `preparar(we, dir, dato)` (pone las
+    entradas en el flanco de bajada) y `flanco` (espera el flanco de subida). Los casos 7, 10 y 11 usan esas
+    dos tareas por separado para actuar entre ellas.
   - `leer(r1, r2, esp1, esp2, caso)`: pone las direcciones en los dos puertos, espera 1 ns **sin flanco de
-    reloj** y compara las dos salidas con `!==` (una `x` cuenta como error).
-  - `comprobar(valor, esperado, caso)`: compara un valor suelto, por ejemplo `uut.registers[0]`.
-  - `revisar_reset(caso)`: revisa los 32 registros del arreglo después de un reset; cuenta como una prueba.
-- Las pruebas siguen los casos 1–11 de la plantilla, en orden. Cada línea de prueba lleva el tiempo `t`, así
-  se ve qué lecturas ocurren sin flanco de por medio.
-- Al final imprime el total de pruebas y si hubo errores.
+    reloj** y compara las dos salidas con `===` (una `x` cuenta como error).
+  - `flanco_con_reset(caso)`: espera el flanco, revisa los 32 registros del arreglo (cuenta como una prueba)
+    y suelta `reset`.
+  - `imprimir(ok, esp1, esp2, caso)`: tiene el único `$display` del archivo. Cada línea lleva el tiempo `t`,
+    los dos puertos, el esperado y `R1`, `R2`, `R3` y `R0` con el formato del enunciado
+    (`R1=10, R2=20, R3=30, R0=0`), leídos del arreglo con el nombre de la instancia: `uut.registers[i]`.
+- Cada escritura va seguida de una lectura, así los registros quedan impresos después de cada escritura, como
+  pide la plantilla.
+- Las pruebas siguen los casos 1–11 de la plantilla, en orden. El tiempo `t` muestra qué lecturas ocurren sin
+  flanco de por medio.
+- No hay línea de resumen: un fallo se ve como `ERROR` en su fila. En las filas de reset, `OK` significa que los 32 registros están en 0, aunque la fila solo
+  muestre cuatro.
 - `$dumpfile("RegisterFile_tb.vcd")` y `$dumpvars(0, RegisterFile_tb)`.
 - **Comprobación del testbench:** con cuatro errores introducidos a propósito en `RegisterFile.v` (permitir
   escribir en `$0`, reset asíncrono, ignorar `RegWrite`, no forzar `$0` en la lectura) el testbench reporta
@@ -175,9 +181,9 @@ Las columnas siguen la tabla de la plantilla. Flancos de subida en t = 5, 15, 25
 
 | # | Caso de prueba | Qué se hace (dirección · dato · RegWrite) | Esperado | Obtenido (consola) | ¿OK? |
 |---|---|---|---|---|:---:|
-| 1 | Reset | `reset = 1` durante el flanco de 5 ns; se suelta en 6 ns | Los 32 registros en 0 | 0 de 32 distintos de 0; `R1=0, R2=0, R3=0, R0=0` | ✅ |
+| 1 | Reset | `reset = 1` durante el flanco de 5 ns; se suelta en 6 ns | Los 32 registros en 0 | `OK` en los 32; `R1=0, R2=0, R3=0, R0=0` | ✅ |
 | 2 | Escribir y leer un registro | `$1` · 10 · 1; leer `$1` y `$0` | `10`, `0` | `10`, `0` | ✅ |
-| 3 | Dos registros a la vez | `$2` · 20 · 1 y `$3` · 30 · 1; leer `($2, $3)` y `($3, $3)` | `20, 30` · `30, 30` | `20, 30` · `30, 30` | ✅ |
+| 3 | Dos registros a la vez | `$2` · 20 · 1, leer `($1, $0)`; `$3` · 30 · 1, leer `($2, $3)` y `($3, $3)` | `10, 0` · `20, 30` · `30, 30` | `10, 0` · `20, 30` · `30, 30` | ✅ |
 | 4 | Intento de escribir en `$0` | `$0` · 999 · 1; leer `$0` por los dos puertos y en el arreglo | `0, 0` y `uut.registers[0] = 0` | `0, 0` y `0` | ✅ |
 | 5 | `RegWrite = 0` | `$2` · 777 · 0; leer `($2, $3)` | `20, 30` (no cambia) | `20, 30` | ✅ |
 | 6 | Lectura asíncrona | Sin flanco (t = 57, 58 y 59 ns): `($2, $3)`, `($1, $2)`, `($3, $1)` | `20, 30` · `10, 20` · `30, 10` | `20, 30` · `10, 20` · `30, 10` | ✅ |
@@ -185,47 +191,35 @@ Las columnas siguen la tabla de la plantilla. Flancos de subida en t = 5, 15, 25
 | 8 | Sobrescribir | `$2` · 200 · 1 (tenía 20) | `$2 = 200` | `200` | ✅ |
 | 9 | Último registro | `$31` · `0xDEADBEEF` · 1 | `3735928559` (`0xDEADBEEF`) | `3735928559` | ✅ |
 | 10 | Leer lo que se está escribiendo | `$1` · 99 · 1, leyendo `$1` | Antes del flanco `10` (viejo); después `99` | `10` · `99` | ✅ |
-| 11 | Reset con datos | `reset = 1` en t = 100 ns, con `$3` · 555 · 1; flanco en 105 ns | En 101 ns los datos siguen (`99`, `3735928559`); en el flanco los 32 pasan a 0 y `$3` no toma 555 | `99`, `3735928559` · 0 de 32 · `$3 = 0` | ✅ |
+| 11 | Reset con datos | `reset = 1` en t = 100 ns, con `$3` · 555 · 1; flanco en 105 ns | En 101 ns los datos siguen (`99`, `3735928559`); en el flanco los 32 pasan a 0 y `$3` no toma 555 | `99`, `3735928559` · `OK` en los 32 · `$3 = 0` | ✅ |
 | — | Adicional: antes del primer reset | t = 1 ns, sin flanco aún; leer `$0` y `$1` | `0` (protección de `$0`) y `x` | `0`, `x` | ✅ |
 
-**Total: 19 pruebas, 0 errores.** En el caso 11, «cuándo» es la clave: el reset es síncrono, así que
+**Total: 20 pruebas, 0 errores.** En el caso 11, «cuándo» es la clave: el reset es síncrono, así que
 activarlo no borra nada hasta el siguiente flanco de subida.
 
 ### Salida de la consola
 ```
-=== Testbench RegisterFile ===
- 1  t=  1 ns  read_reg1=0 -> 0  read_reg2=1 -> x | esperado=0, x  OK     Adicional: antes del reset, $0 lee 0
- 2  t=  6 ns  registros distintos de 0: 0 de 32 | esperado=0  OK     Caso 1: reset = 1, los 32 en 0
-    t=  6 ns  RegWrite=0 write_reg=0 write_data=0 -> R1=0, R2=0, R3=0, R0=0 | R0=0
-    t= 16 ns  RegWrite=1 write_reg=1 write_data=10 -> R1=10, R2=0, R3=0, R0=0 | R1=10
- 3  t= 17 ns  read_reg1=1 -> 10  read_reg2=0 -> 0 | esperado=10, 0  OK     Caso 2: escribir y leer $1
-    t= 26 ns  RegWrite=1 write_reg=2 write_data=20 -> R1=10, R2=20, R3=0, R0=0 | R2=20
-    t= 36 ns  RegWrite=1 write_reg=3 write_data=30 -> R1=10, R2=20, R3=30, R0=0 | R3=30
- 4  t= 37 ns  read_reg1=2 -> 20  read_reg2=3 -> 30 | esperado=20, 30  OK     Caso 3: $2 y $3 a la vez
- 5  t= 38 ns  read_reg1=3 -> 30  read_reg2=3 -> 30 | esperado=30, 30  OK     Caso 3: $3 por los dos puertos
-    t= 46 ns  RegWrite=1 write_reg=0 write_data=999 -> R1=10, R2=20, R3=30, R0=0 | R0=0
- 6  t= 47 ns  read_reg1=0 -> 0  read_reg2=0 -> 0 | esperado=0, 0  OK     Caso 4: $0 sigue en 0 (puertos)
- 7  t= 47 ns  valor=0 | esperado=0  OK     Caso 4: $0 sigue en 0 (arreglo)
-    t= 56 ns  RegWrite=0 write_reg=2 write_data=777 -> R1=10, R2=20, R3=30, R0=0 | R2=20
- 8  t= 57 ns  read_reg1=2 -> 20  read_reg2=3 -> 30 | esperado=20, 30  OK     Caso 5: RegWrite=0, $2 sigue en 20
- 9  t= 58 ns  read_reg1=1 -> 10  read_reg2=2 -> 20 | esperado=10, 20  OK     Caso 6: otra direccion, sin flanco
-10  t= 59 ns  read_reg1=3 -> 30  read_reg2=1 -> 10 | esperado=30, 10  OK     Caso 6: otra direccion, sin flanco
-11  t= 61 ns  read_reg1=4 -> 0  read_reg2=0 -> 0 | esperado=0, 0  OK     Caso 7: antes del flanco $4 = 0
-    t= 66 ns  RegWrite=1 write_reg=4 write_data=44 -> R1=10, R2=20, R3=30, R0=0 | R4=44
-12  t= 67 ns  read_reg1=4 -> 44  read_reg2=0 -> 0 | esperado=44, 0  OK     Caso 7: se guarda 44, el dato del flanco
-    t= 76 ns  RegWrite=1 write_reg=2 write_data=200 -> R1=10, R2=200, R3=30, R0=0 | R2=200
-13  t= 77 ns  read_reg1=2 -> 200  read_reg2=1 -> 10 | esperado=200, 10  OK     Caso 8: $2 sobrescrito, 20 -> 200
-    t= 86 ns  RegWrite=1 write_reg=31 write_data=3735928559 -> R1=10, R2=200, R3=30, R0=0 | R31=3735928559
-14  t= 87 ns  read_reg1=31 -> 3735928559  read_reg2=0 -> 0 | esperado=3735928559, 0  OK     Caso 9: $31 = 0xDEADBEEF
-15  t= 91 ns  read_reg1=1 -> 10  read_reg2=2 -> 200 | esperado=10, 200  OK     Caso 10: antes del flanco, $1 viejo
-    t= 96 ns  RegWrite=1 write_reg=1 write_data=99 -> R1=99, R2=200, R3=30, R0=0 | R1=99
-16  t= 97 ns  read_reg1=1 -> 99  read_reg2=2 -> 200 | esperado=99, 200  OK     Caso 10: despues del flanco, $1 nuevo
-17  t=101 ns  read_reg1=1 -> 99  read_reg2=31 -> 3735928559 | esperado=99, 3735928559  OK     Caso 11: reset=1, sin flanco aun
-18  t=106 ns  registros distintos de 0: 0 de 32 | esperado=0  OK     Caso 11: en el flanco, los 32 en 0
-    t=106 ns  RegWrite=1 write_reg=3 write_data=555 -> R1=0, R2=0, R3=0, R0=0 | R3=0
-19  t=107 ns  read_reg1=3 -> 0  read_reg2=31 -> 0 | esperado=0, 0  OK     Caso 11: $3 no tomo 555
-=== 19 pruebas, todas las pruebas OK ===
-RegisterFile_tb.v:244: $finish called at 107000 (1ps)
+t=  1 ns  read_reg1=0 -> 0  read_reg2=1 -> x | esperado=0, x | R1=x, R2=x, R3=x, R0=x  OK     Adicional: antes del reset, $0 lee 0
+t=  6 ns  read_reg1=0 -> 0  read_reg2=1 -> 0 | esperado=0, 0 | R1=0, R2=0, R3=0, R0=0  OK     Caso 1: reset = 1, los 32 en 0
+t= 17 ns  read_reg1=1 -> 10  read_reg2=0 -> 0 | esperado=10, 0 | R1=10, R2=0, R3=0, R0=0  OK     Caso 2: escribir y leer $1
+t= 27 ns  read_reg1=1 -> 10  read_reg2=0 -> 0 | esperado=10, 0 | R1=10, R2=20, R3=0, R0=0  OK     Caso 3: escribir $2 no cambia $1
+t= 37 ns  read_reg1=2 -> 20  read_reg2=3 -> 30 | esperado=20, 30 | R1=10, R2=20, R3=30, R0=0  OK     Caso 3: $2 y $3 a la vez
+t= 38 ns  read_reg1=3 -> 30  read_reg2=3 -> 30 | esperado=30, 30 | R1=10, R2=20, R3=30, R0=0  OK     Caso 3: $3 por los dos puertos
+t= 47 ns  read_reg1=0 -> 0  read_reg2=0 -> 0 | esperado=0, 0 | R1=10, R2=20, R3=30, R0=0  OK     Caso 4: $0 sigue en 0 (puertos)
+t= 47 ns  read_reg1=0 -> 0  read_reg2=0 -> 0 | esperado=0, 0 | R1=10, R2=20, R3=30, R0=0  OK     Caso 4: $0 sigue en 0 (arreglo)
+t= 57 ns  read_reg1=2 -> 20  read_reg2=3 -> 30 | esperado=20, 30 | R1=10, R2=20, R3=30, R0=0  OK     Caso 5: RegWrite=0, $2 sigue en 20
+t= 58 ns  read_reg1=1 -> 10  read_reg2=2 -> 20 | esperado=10, 20 | R1=10, R2=20, R3=30, R0=0  OK     Caso 6: otra direccion, sin flanco
+t= 59 ns  read_reg1=3 -> 30  read_reg2=1 -> 10 | esperado=30, 10 | R1=10, R2=20, R3=30, R0=0  OK     Caso 6: otra direccion, sin flanco
+t= 61 ns  read_reg1=4 -> 0  read_reg2=0 -> 0 | esperado=0, 0 | R1=10, R2=20, R3=30, R0=0  OK     Caso 7: antes del flanco $4 = 0
+t= 67 ns  read_reg1=4 -> 44  read_reg2=0 -> 0 | esperado=44, 0 | R1=10, R2=20, R3=30, R0=0  OK     Caso 7: se guarda 44, el dato del flanco
+t= 77 ns  read_reg1=2 -> 200  read_reg2=1 -> 10 | esperado=200, 10 | R1=10, R2=200, R3=30, R0=0  OK     Caso 8: $2 sobrescrito, 20 -> 200
+t= 87 ns  read_reg1=31 -> 3735928559  read_reg2=0 -> 0 | esperado=3735928559, 0 | R1=10, R2=200, R3=30, R0=0  OK     Caso 9: $31 = 0xDEADBEEF
+t= 91 ns  read_reg1=1 -> 10  read_reg2=2 -> 200 | esperado=10, 200 | R1=10, R2=200, R3=30, R0=0  OK     Caso 10: antes del flanco, $1 viejo
+t= 97 ns  read_reg1=1 -> 99  read_reg2=2 -> 200 | esperado=99, 200 | R1=99, R2=200, R3=30, R0=0  OK     Caso 10: despues del flanco, $1 nuevo
+t=101 ns  read_reg1=1 -> 99  read_reg2=31 -> 3735928559 | esperado=99, 3735928559 | R1=99, R2=200, R3=30, R0=0  OK     Caso 11: reset=1, sin flanco aun
+t=106 ns  read_reg1=1 -> 0  read_reg2=31 -> 0 | esperado=0, 0 | R1=0, R2=0, R3=0, R0=0  OK     Caso 11: en el flanco, los 32 en 0
+t=107 ns  read_reg1=3 -> 0  read_reg2=31 -> 0 | esperado=0, 0 | R1=0, R2=0, R3=0, R0=0  OK     Caso 11: $3 no tomo 555
+RegisterFile_tb.v:84: $finish called at 107000 (1ps)
 ```
 
 ## Capturas
