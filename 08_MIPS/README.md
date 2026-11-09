@@ -120,7 +120,7 @@ línea (PC en 0) y en los 32 registros finales.
 | Decode | Campos (`assign` en `MIPS.v`), `cu` (`ControlUnit.v`), `aluc` (`ALUControl.v`), `rf` lee `rs` y `rt`, extensión de signo | Consola: `RegDst=… ALUOp=…` y el mnemónico de la fila. GTKWave: grupo Control |
 | Execute | Mux `ALUSrc`, `alu` (`ALU.v`) | Consola: `rd1=… rd2=… ALU=…`. GTKWave: `read_data1`, `read_data2`, `src2`, `alu_result` |
 | Memory | No hay DMEM (decisión 6) | — |
-| Write Back | Mux `RegDst`, `rf` (`RegisterFile.v`) escribe en el flanco ↑ | Consola: `$rd<=valor`, el dato que llega al banco; las filas `registro final` lo leen del banco. GTKWave: `write_reg` y `R1`–`R20` |
+| Write Back | Mux `RegDst`, `rf` (`RegisterFile.v`) escribe en el flanco ↑ | Consola: `$rd<=valor`, el dato que llega al banco; las 32 líneas finales (`$n = valor`) lo leen del banco. GTKWave: `write_reg` y `R1`–`R20` |
 
 ### Cuántos ciclos y por qué
 **26 ciclos** después del reset, uno por instrucción (monociclo):
@@ -156,23 +156,28 @@ línea (PC en 0) y en los 32 registros finales.
 ## Testbench (`MIPS_tb.v`)
 - **Carga del programa:** la IMEM carga las 26 instrucciones de clase en su `initial` al empezar la
   simulación; el testbench comprueba en cada ciclo que la instrucción leída es la esperada.
-- Tarea `ciclo_cpu(pc, instr, ctl, alu_control, rd1, rd2, alu, write_reg, next_pc, caso)`: en el flanco ↓
-  compara con `===` las señales del ciclo: el PC, la instrucción, las cinco señales de control
-  (`RegDst_ALUSrc_RegWrite_Jump_ALUOp`), `alu_control`, `read_data1`, `read_data2`, el resultado de la ALU, `zero`
-  (esperado: resultado `== 0`), `write_reg` y `next_pc`.
-- **Una sola impresión:** la tarea `imprimir` tiene el único `$display` del archivo. Da una línea por
-  instrucción con lo que evalúa la plantilla: decodificación (`RegDst=… ALUOp=…`), acceso a registros
-  (`rd1=… rd2=… ALU=…`) y resultado (`$rd<=valor`, el dato que llega al banco), más `OK`/`ERROR` y el mnemónico.
-  No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
+- **Mismo formato que los demás testbenches:** aquí no hay entradas que poner, el procesador avanza solo, así
+  que cada ciclo pone en `esperado` sus valores calculados a mano y luego imprime con
+  `@(negedge clk) $display(...)`. `esperado` junta en un vector, como en `ControlUnit_tb`, las columnas de la
+  tabla: el PC, la instrucción, las cinco señales de control `RegDst_ALUSrc_RegWrite_Jump_ALUOp`,
+  `alu_control`, `read_data1`, `read_data2`, el resultado de la ALU, `write_reg` y `next_pc`; un comentario
+  arriba de la primera fila nombra cada columna.
+- `wire ok` compara ese vector con las señales del ciclo usando `===`, y además que `zero` valga 1 solo si el
+  resultado es 0. Las señales internas se leen con `uut.` y se les da en el testbench el nombre de su columna
+  en la consola (`rd1 = uut.read_data1`, `wreg = uut.write_reg`, …), así el `$display` queda corto.
+- Cada línea muestra lo que evalúa la plantilla: decodificación (`RegDst=… ALUOp=…`), acceso a registros
+  (`rd1=… rd2=… ALU=…`) y resultado (`$rd<=valor`, el dato que llega al banco), más `OK`/`ERROR` y el
+  mnemónico, escrito al final del texto del `$display` de esa fila.
 - **Lo esperado se calcula a mano**, con la traza de abajo y la tabla de [`02_IMEM`](../02_IMEM/README.md);
   nada se lee del propio procesador. Se contrastó además con un modelo independiente del programa (fuera del
   repositorio).
-- Tras el último flanco (266 ns), el mismo `imprimir` da 32 filas `registro final`, leídas del banco y comparadas
-  con lo esperado: **esa es la salida que se fotografía**. Las columnas de señales de esas filas son las de la
-  NOP en curso; lo que importa es `$n<=valor`. El reset y cada escritura no tienen línea propia: un PC sin
-  reiniciar falla en la primera fila, y un registro mal escrito, en la fila que lo lee o en su `registro final`.
-- `R1` a `R20` son `wire` conectados a `uut.rf.registers[i]`: `$dumpvars` no vuelca arreglos, y así los
-  registros se ven en GTKWave.
+- **Registros finales:** tras el último flanco (266 ns), una línea por registro con el valor esperado escrito
+  en la misma línea: `$display("$13 = %-5d %0s", R13, R13 === -25 ? "OK" : "ERROR")`. `$18` a `$31` deben valer
+  0 y van en un `for`. **Esa es la salida que se fotografía.** No hay línea de resumen: un fallo se ve como
+  `ERROR` en su fila. El reset y cada escritura no tienen línea propia: un PC sin reiniciar falla en la primera
+  fila, y un registro mal escrito, en la fila que lo lee o en su línea final.
+- `R1` a `R20` son `wire signed` conectados a `uut.rf.registers[i]`: `$dumpvars` no vuelca arreglos, y así los
+  registros se ven en GTKWave; `signed` hace que `%d` imprima `$13 = -25`.
 - `$dumpfile("MIPS_tb.vcd")` y `$dumpvars(0, MIPS_tb)` (incluye las señales internas de `uut`).
 
 ## Casos de prueba (resultados de la simulación)
@@ -244,65 +249,65 @@ de simular; los obtenidos son los de la consola. `rd2` es siempre `$rt`, aunque 
 
 ### Salida de la consola
 ```
-PC=0     Instr=2801000f  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=15   | $1 <=15    OK     #1  MOVI $1, 15
-PC=1     Instr=28020014  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=20   | $2 <=20    OK     #2  MOVI $2, 20
-PC=2     Instr=28030032  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=50   | $3 <=50    OK     #3  MOVI $3, 50
-PC=3     Instr=28040005  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=5    | $4 <=5     OK     #4  MOVI $4, 5
-PC=4     Instr=28050002  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=2    | $5 <=2     OK     #5  MOVI $5, 2
-PC=5     Instr=00223020  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=15  rd2=20  ALU=35   | $6 <=35    OK     #6  ADD $6, $1, $2
-PC=6     Instr=00613822  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=50  rd2=15  ALU=35   | $7 <=35    OK     #7  SUB $7, $3, $1
-PC=7     Instr=00434018  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=20  rd2=50  ALU=1000 | $8 <=1000  OK     #8  MUL $8, $2, $3
-PC=8     Instr=0062481a  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=50  rd2=20  ALU=2    | $9 <=2     OK     #9  DIV $9, $3, $2
-PC=9     Instr=2021000a  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01 | rd1=15  rd2=15  ALU=25   | $1 <=25    OK     #10 ADDI $1, $1, 10
-PC=10    Instr=24420004  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11 | rd1=20  rd2=20  ALU=16   | $2 <=16    OK     #11 SUBI $2, $2, 4
-PC=11    Instr=00c45020  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=35  rd2=5   ALU=40   | $10<=40    OK     #12 ADD $10, $6, $4
-PC=12    Instr=00c55818  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=35  rd2=2   ALU=70   | $11<=70    OK     #13 MUL $11, $6, $5
-PC=13    Instr=0145601a  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=40  rd2=2   ALU=20   | $12<=20    OK     #14 DIV $12, $10, $5
-PC=14    Instr=20840014  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01 | rd1=5   rd2=5   ALU=25   | $4 <=25    OK     #15 ADDI $4, $4, 20
-PC=15    Instr=00836822  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=25  rd2=50  ALU=-25  | $13<=-25   OK     #16 SUB $13, $4, $3
-PC=16    Instr=280e0064  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=100  | $14<=100   OK     #17 MOVI $14, 100
-PC=17    Instr=01c17820  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=100 rd2=25  ALU=125  | $15<=125   OK     #18 ADD $15, $14, $1
-PC=18    Instr=24630005  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11 | rd1=50  rd2=50  ALU=45   | $3 <=45    OK     #19 SUBI $3, $3, 5
-PC=19    Instr=01e28018  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=125 rd2=16  ALU=2000 | $16<=2000  OK     #20 MUL $16, $15, $2
-PC=20    Instr=20310001  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01 | rd1=25  rd2=0   ALU=26   | $17<=26    OK     #21 ADDI $17, $1, 1
-PC=21    Instr=08000400  RegDst=0 ALUSrc=0 RegWrite=0 Jump=1 ALUOp=00 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK     #22 JUMP 1024
-PC=1024  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK     NOP (fuera de la IMEM)
-PC=1025  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK     NOP (fuera de la IMEM)
-PC=1026  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK     NOP (fuera de la IMEM)
-PC=1027  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK     NOP (fuera de la IMEM)
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $1 <=25    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $2 <=16    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $3 <=45    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $4 <=25    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $5 <=2     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $6 <=35    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $7 <=35    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $8 <=1000  OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $9 <=2     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $10<=40    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $11<=70    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $12<=20    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $13<=-25   OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $14<=100   OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $15<=125   OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $16<=2000  OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $17<=26    OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $18<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $19<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $20<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $21<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $22<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $23<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $24<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $25<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $26<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $27<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $28<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $29<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $30<=0     OK     registro final
-PC=1028  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $31<=0     OK     registro final
-MIPS_tb.v:89: $finish called at 270000 (1ps)
+PC=0     Instr=2801000f  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=15   | $1 <=15    OK  #1  MOVI $1, 15
+PC=1     Instr=28020014  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=20   | $2 <=20    OK  #2  MOVI $2, 20
+PC=2     Instr=28030032  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=50   | $3 <=50    OK  #3  MOVI $3, 50
+PC=3     Instr=28040005  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=5    | $4 <=5     OK  #4  MOVI $4, 5
+PC=4     Instr=28050002  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=2    | $5 <=2     OK  #5  MOVI $5, 2
+PC=5     Instr=00223020  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=15  rd2=20  ALU=35   | $6 <=35    OK  #6  ADD $6, $1, $2
+PC=6     Instr=00613822  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=50  rd2=15  ALU=35   | $7 <=35    OK  #7  SUB $7, $3, $1
+PC=7     Instr=00434018  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=20  rd2=50  ALU=1000 | $8 <=1000  OK  #8  MUL $8, $2, $3
+PC=8     Instr=0062481a  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=50  rd2=20  ALU=2    | $9 <=2     OK  #9  DIV $9, $3, $2
+PC=9     Instr=2021000a  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01 | rd1=15  rd2=15  ALU=25   | $1 <=25    OK  #10 ADDI $1, $1, 10
+PC=10    Instr=24420004  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11 | rd1=20  rd2=20  ALU=16   | $2 <=16    OK  #11 SUBI $2, $2, 4
+PC=11    Instr=00c45020  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=35  rd2=5   ALU=40   | $10<=40    OK  #12 ADD $10, $6, $4
+PC=12    Instr=00c55818  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=35  rd2=2   ALU=70   | $11<=70    OK  #13 MUL $11, $6, $5
+PC=13    Instr=0145601a  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=40  rd2=2   ALU=20   | $12<=20    OK  #14 DIV $12, $10, $5
+PC=14    Instr=20840014  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01 | rd1=5   rd2=5   ALU=25   | $4 <=25    OK  #15 ADDI $4, $4, 20
+PC=15    Instr=00836822  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=25  rd2=50  ALU=-25  | $13<=-25   OK  #16 SUB $13, $4, $3
+PC=16    Instr=280e0064  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | rd1=0   rd2=0   ALU=100  | $14<=100   OK  #17 MOVI $14, 100
+PC=17    Instr=01c17820  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=100 rd2=25  ALU=125  | $15<=125   OK  #18 ADD $15, $14, $1
+PC=18    Instr=24630005  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11 | rd1=50  rd2=50  ALU=45   | $3 <=45    OK  #19 SUBI $3, $3, 5
+PC=19    Instr=01e28018  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=125 rd2=16  ALU=2000 | $16<=2000  OK  #20 MUL $16, $15, $2
+PC=20    Instr=20310001  RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01 | rd1=25  rd2=0   ALU=26   | $17<=26    OK  #21 ADDI $17, $1, 1
+PC=21    Instr=08000400  RegDst=0 ALUSrc=0 RegWrite=0 Jump=1 ALUOp=00 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK  #22 JUMP 1024
+PC=1024  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK  NOP (fuera de la IMEM)
+PC=1025  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK  NOP (fuera de la IMEM)
+PC=1026  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK  NOP (fuera de la IMEM)
+PC=1027  Instr=00000000  RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | rd1=0   rd2=0   ALU=0    | $0 <=0     OK  NOP (fuera de la IMEM)
+$0  = 0     OK
+$1  = 25    OK
+$2  = 16    OK
+$3  = 45    OK
+$4  = 25    OK
+$5  = 2     OK
+$6  = 35    OK
+$7  = 35    OK
+$8  = 1000  OK
+$9  = 2     OK
+$10 = 40    OK
+$11 = 70    OK
+$12 = 20    OK
+$13 = -25   OK
+$14 = 100   OK
+$15 = 125   OK
+$16 = 2000  OK
+$17 = 26    OK
+$18 = 0     OK
+$19 = 0     OK
+$20 = 0     OK
+$21 = 0     OK
+$22 = 0     OK
+$23 = 0     OK
+$24 = 0     OK
+$25 = 0     OK
+$26 = 0     OK
+$27 = 0     OK
+$28 = 0     OK
+$29 = 0     OK
+$30 = 0     OK
+$31 = 0     OK
+MIPS_tb.v:190: $finish called at 270000 (1ps)
 ```
 
 ## El testbench detecta los errores de conexión
@@ -323,9 +328,9 @@ las dos decisiones nuevas de la Entrega Final (D5 y D1).
 
 ## Capturas
 - `consola.png` ⏳: desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`), la línea
-  de cada instrucción y las 32 filas `registro final`. Las líneas miden hasta 139 caracteres: ensanchar la
+  de cada instrucción y las 32 líneas de registros finales. Las líneas miden hasta 136 caracteres: ensanchar la
   ventana para que no se partan. Si no cabe, varias capturas consecutivas.
-- Foto del CMD ⏳: las 32 filas `registro final` que imprime el testbench al terminar.
+- Foto del CMD ⏳: las 32 líneas `$n = valor` que imprime el testbench al terminar.
 - [`gtkwave.png`](gtkwave.png) ✅: `MIPS_tb.gtkw` abre cuatro grupos. **Búsqueda:** `clk`, `reset`,
   `current_pc` y `next_pc` en decimal, `instruction` en hex. **Control:** las cinco señales y `alu_control` en
   binario. **Ejecución:** `read_data1`, `read_data2`, `src2` y `alu_result` en decimal con signo, `zero` y
