@@ -62,7 +62,7 @@ principales son:
 | ControlUnit | [`04_ControlUnit`](../04_ControlUnit/) | Combinacional | ✅ | 12 pruebas, 0 errores |
 | ALU | [`05_ALU`](../05_ALU/) | Combinacional | ✅ | 22 pruebas, 0 errores |
 | ALUControl | [`06_ALUControl`](../06_ALUControl/) | Combinacional | ✅ | 17 pruebas, 0 errores |
-| RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 20 pruebas, 0 errores |
+| RegisterFile | [`07_RegisterFile`](../07_RegisterFile/) | Lectura combinacional, escritura secuencial | ✅ | 19 pruebas, 0 errores |
 | MIPS (datapath completo) | [`08_MIPS`](../08_MIPS/) | Integración: 6 instancias + `assign` | ✅ | Programa de clase: 26 ciclos y 32 registros, 0 errores |
 
 ---
@@ -532,10 +532,9 @@ end
 
 **Verificación** ([`PC_tb.v`](../01_PC/PC_tb.v)):
 
-- Reloj de 10 ns. Las entradas cambian en el **flanco de bajada** y se comprueba **1 ns después del flanco de
-  subida**, cuando el `<=` ya se asentó.
-- La tarea `paso(reset, next_pc, esperado, caso)` encapsula un ciclo, y `verificar` compara con `===`, así que una
-  `x` cuenta como error.
+- Reloj de 10 ns. Cada caso pone `reset`, `next_pc` y el PC `esperado` en una línea y en la siguiente imprime
+  con `@(posedge clk) #1 $display(...)`: **1 ns después del flanco de subida**, cuando el `<=` ya se asentó.
+- `wire ok = (current_pc === esperado)` decide `OK`/`ERROR` en cada línea; con `===`, una `x` cuenta como error.
 - Casos: reset con `next_pc ≠ 0` (el reset gana), soltar reset, avance normal, `next_pc` cambiando **dos veces
   entre flancos** sin que el PC se mueva, reset a mitad de ejecución y 32 bits en 1.
 - **Resultado: 10 ciclos y 13 comprobaciones, 0 errores.**
@@ -607,12 +606,12 @@ está en la dirección `n − 1`. La tabla completa, con binario, hex y efecto, 
 **Verificación** ([`IMEM_tb.v`](../02_IMEM/IMEM_tb.v)):
 
 - Declara los campos como `wire` (`opcode = instruction[31:26]`, …) para que aparezcan en GTKWave.
-- `leer(dirección, esperado, caso)` espera 10 ns (lectura combinacional) y compara con `===`: una `x` también
-  cuenta como error.
-- Un solo `$display` imprime dos líneas: la instrucción y los ocho campos por nombre, sin distinguir el formato.
-  El inmediato se muestra con `$signed`.
-- **El esperado se copia a mano** de la tabla de clase, no se lee de la memoria: un error de copia en `IMEM.v`
-  aparece como `ERROR`.
+- Un `for` pone `addr = i` y `#10 $display(...)` (lectura combinacional) compara con `instruction === programa[i]`:
+  una `x` también cuenta como error. Cada lectura imprime dos líneas: la instrucción y los ocho campos por
+  nombre, sin distinguir el formato. El inmediato se muestra con `$signed`.
+- **El esperado se copia a mano** de la tabla de clase al arreglo `programa`, no se lee de la memoria: un error
+  de copia en `IMEM.v` aparece como `ERROR`. Las cinco direcciones sin programa o fuera de la memoria van en
+  líneas sueltas del mismo estilo (`addr = 1024;  #10 $display(...)`).
 - **Resultado: 31 lecturas (0–25, 26, 1023, 1024, 1025 y 2048), 0 errores.**
 
 <a id="s5-3"></a>
@@ -635,7 +634,7 @@ IMEM uut_imem (.addr(current_pc), .instruction(instruction));                   
 - Se compilan `../01_PC/PC.v` y `../02_IMEM/IMEM.v` desde su carpeta original. **No se copian**, para que exista
   una sola fuente de verdad.
 
-**Temporización del arranque** ([`PC_IMEM_tb.v:34-35`](../03_PC_IMEM/PC_IMEM_tb.v#L34-L35)):
+**Temporización del arranque** ([`PC_IMEM_tb.v:66-67`](../03_PC_IMEM/PC_IMEM_tb.v#L66-L67)):
 
 | t | Evento |
 | :--- | :--- |
@@ -653,7 +652,8 @@ PC como la salida combinacional de la IMEM están estables, sin carreras con el 
 y se decodifica, y después se leen también las instrucciones 23–26. Elegir con `Jump` le toca al datapath de
 `08_MIPS`, donde `JUMP 1024` sí saca el PC de la memoria.
 
-**Verificación:** compara el PC y la instrucción de cada ciclo con valores escritos a mano. Se comprobó además
+**Verificación:** un `for` de 27 ciclos hace `@(negedge clk) $display(...)` y compara el PC y la instrucción con
+`i` y con el arreglo `programa`, copiado a mano de la tabla de clase. Se comprobó además
 que con `+4` el testbench marca `ERROR` desde el ciclo 1. **Resultado: 27 ciclos (direcciones 0–26), 0 errores.**
 
 <a id="s5-4"></a>
@@ -717,8 +717,8 @@ end
 
 **Verificación** ([`ControlUnit_tb.v`](../04_ControlUnit/ControlUnit_tb.v)):
 
-- `probar(opcode, esperado, caso)` compara el vector `{RegDst, ALUSrc, RegWrite, Jump, ALUOp}` de una vez con un
-  esperado escrito como `6'b1_0_1_0_10`.
+- Cada prueba pone `opcode` y `esperado` (escrito como `6'b1_0_1_0_10`) y luego `#10 $display(...)`;
+  `wire ok` compara el vector `{RegDst, ALUSrc, RegWrite, Jump, ALUOp}` de una vez con el esperado.
 - Además de los 5 opcodes válidos y el caso no definido, prueba opcodes **a un bit** de JUMP (`000011`) y de MOVI
   (`001011`), un opcode **`x`** y la secuencia **R → J → SUBI**, en la que cambian las 5 señales. Así, un valor
   arrastrado de la instrucción anterior daría `ERROR`.
@@ -950,16 +950,18 @@ Con cualquiera de los dos primeros bastaría; juntos son redundantes, pero no es
 
 **Verificación** ([`RegisterFile_tb.v`](../07_RegisterFile/RegisterFile_tb.v)):
 
+- Cada caso pone las entradas y lo que deben leer los dos puertos; una escritura se imprime con
+  `@(posedge clk) #1 $display(...)` y una lectura sola con `#1 $display(...)`, sin flanco.
 - Accede al arreglo interno con una **referencia jerárquica** (`uut.registers[i]`) para comprobar los 32 registros
-  tras el reset e imprimir `R1=…, R2=…, R3=…, R0=…` (formato del enunciado) en cada línea; toda escritura va
-  seguida de una lectura.
+  tras el reset (función `todos_valen`) e imprimir `R1=…, R2=…, R3=…, R0=…` (formato del enunciado) en cada línea;
+  cada escritura se imprime.
 - Sigue los casos 1–11 de la plantilla: reset; escribir y leer; dos registros a la vez y el **mismo registro por
   los dos puertos**; intento de escribir `$0` (puertos y arreglo); `RegWrite = 0`; **lectura asíncrona** sin
   flanco; **escritura síncrona con el dato cambiando entre flancos** (se guarda el del flanco); sobrescribir;
   `$31` con `0xDEADBEEF`; leer el registro que se está escribiendo; **reset con datos**, comprobando que nada se
   borra hasta el flanco. Más un adicional: antes del primer reset, `$0` ya se lee como 0 y `$1` como `x`.
 - Cuatro mutaciones (escribir `$0`, reset asíncrono, ignorar `RegWrite`, no forzar `$0` al leer) dan error.
-- **Resultado: 20 pruebas, 0 errores.**
+- **Resultado: 19 pruebas, 0 errores.**
 
 <a id="s5-8"></a>
 
@@ -983,8 +985,8 @@ módulo propio son pequeñas, pero sin ellas los módulos no forman un procesado
 **Interfaz:** entradas `clk` y `reset`; salidas `current_pc`, `instruction` y `alu_result` para observar el
 procesador. `zero` queda en un `wire` interno sin uso, preparado para un futuro `beq`.
 
-**Verificación:** `MIPS_tb` imprime una línea por instrucción con un solo `$display` (`PC=… Instr=…`, señales,
-`rd1`/`rd2`/`ALU` y `$rd<=valor`). En el flanco ↓ de cada ciclo compara
+**Verificación:** `MIPS_tb` imprime una línea por instrucción (`PC=… Instr=…`, señales,
+`rd1`/`rd2`/`ALU` y `$rd<=valor`): cada ciclo pone sus valores en `esperado` y luego `@(negedge clk) $display(...)`. En el flanco ↓ de cada ciclo compara
 PC, instrucción, las cinco señales de control, `alu_control`, `read_data1`, `read_data2`, el resultado, `zero`,
 `write_reg` y `next_pc` con la traza de la sección 7. Ejecuta 26 ciclos (las 22 instrucciones hasta `JUMP 1024` y cuatro NOPs en PC 1024–1027) y
 al final imprime y compara los 32 registros, leídos con `uut.rf.registers[i]`. Resultado: 26 ciclos y 32 registros
@@ -1071,10 +1073,10 @@ no se usa en procesadores reales y por qué existen los diseños multiciclo y se
 
 | Regla | Dónde se aplica | Por qué |
 | :--- | :--- | :--- |
-| Cambiar las entradas en el **flanco ↓** | `PC_tb`, `RegisterFile_tb` | Lejos del flanco activo: no hay carrera entre el testbench y el DUT |
-| Observar **1 ns después del flanco ↑** o en el flanco ↓ | Todos los secuenciales | El `<=` ya se asentó. Imprimir en el mismo flanco mostraría el valor anterior |
+| Cambiar las entradas **1 ns después del flanco ↑** (justo tras imprimir) | `PC_tb`, `RegisterFile_tb` | Lejos del flanco activo siguiente: no hay carrera entre el testbench y el DUT |
+| Observar **1 ns después del flanco ↑** (`@(posedge clk) #1 $display`) o en el flanco ↓ | Todos los secuenciales | El `<=` ya se asentó. Imprimir en el mismo flanco mostraría el valor anterior |
 | Una línea por ciclo en el flanco ↓, registros finales 1 ns después del último flanco ↑ | `MIPS_tb` | A mitad de ciclo la lógica combinacional ya se asentó; el banco solo cambia en el flanco que termina la instrucción |
-| Esperar `#10` sin reloj | `IMEM_tb`, `ControlUnit_tb`, `ALUControl_tb` | Son combinacionales: basta con que la salida se asiente |
+| Esperar `#10` sin reloj (`#10 $display`) | `IMEM_tb`, `ControlUnit_tb`, `ALUControl_tb`, `ALU_tb` | Son combinacionales: basta con que la salida se asiente |
 
 ---
 
@@ -1161,8 +1163,8 @@ ejecutan**: `JUMP 1024` lleva el PC fuera de la memoria, donde solo se leen NOPs
 | **Autocomprobación** | `OK`/`ERROR` en cada línea, sin línea de resumen | `vvp <tb>.vvp \| findstr ERROR` no imprime nada si todo pasó |
 | **Esperado independiente del DUT** | Valores escritos a mano en el testbench, nunca leídos del módulo | Si el esperado saliera del propio módulo, un error se compararía consigo mismo |
 | **Comparación de cuatro estados** | `===` para decidir `OK` o `ERROR` | Con `==`, una `x` daría «desconocido». Con `===` una `x` inesperada da `ERROR`, y una `x` esperada solo coincide con una `x` real |
-| **Tareas reutilizables** | `paso`, `leer`, `ciclo_cpu`, `probar`, `ciclo`, `imprimir` | Cada caso es una línea legible |
-| **Una sola impresión** | Un `$display` por testbench; con `\n` da dos líneas donde la plantilla las pide | El formato de salida es uniforme y se cambia en un solo lugar |
+| **Asignar y luego imprimir** | Cada caso pone las entradas y el `esperado` en una línea y en la siguiente imprime: `#10 $display(...)` (combinacional) o `@(posedge clk) #1 $display(...)` (secuencial). `wire ok = (salida === esperado)` decide `OK`/`ERROR`. En IMEM y PC + IMEM un `for` recorre el arreglo `programa`; en `MIPS_tb`, que no tiene entradas, cada ciclo pone en `esperado` sus diez valores y se imprime con `@(negedge clk) $display(...)` | Cada caso se lee de arriba abajo, sin buscar tareas en otra parte del archivo |
+| **Dos líneas donde la plantilla las pide** | Un `\n` dentro del `$display` | IMEM y PC + IMEM imprimen la instrucción y sus campos por nombre |
 | **Casos de borde** | Opcode `x`, direcciones fuera de rango, `0xFFFFFFFF`, `$0`, `$31`, reset con prioridad, cambios entre flancos | Los errores viven en los bordes |
 | **Pruebas de mutación** | Copias defectuosas del módulo (sin el valor por defecto de `Jump`, `ALUOp` cambiado, PC `+4`; en el datapath, extensión con ceros, muxes invertidos, sin mux `Jump`, banco sin reset, IMEM sin comprobación de rango, `funct` del enunciado) | Demuestran que el testbench **detecta** los errores que pretende prevenir, y también qué no detecta (la extensión con ceros, con el programa de clase) |
 | **Ondas** | `$dumpfile`/`$dumpvars(0, tb)` y vistas guardadas `.gtkw` | La plantilla pide capturas; el `.gtkw` fija las señales y sus formatos |
@@ -1171,12 +1173,12 @@ ejecutan**: `JUMP 1024` lleva el PC fuera de la memoria, donde solo se leen NOPs
 
 | Testbench | Tipo de estímulo | Comprobaciones | Duración | Resultado |
 | :--- | :--- | :---: | :---: | :---: |
-| `PC_tb` | Reloj; entradas en flanco ↓ | 13 (10 ciclos) | 100 ns | ✅ 0 errores |
+| `PC_tb` | Reloj; entradas tras cada flanco ↑ | 13 (10 ciclos) | 96 ns | ✅ 0 errores |
 | `IMEM_tb` | Dirección cada 10 ns | 31 | 310 ns | ✅ |
 | `PC_IMEM_tb` | Reloj; el PC avanza solo | 27 | 274 ns | ✅ |
 | `ControlUnit_tb` | Opcode cada 10 ns | 12 | 120 ns | ✅ |
 | `ALUControl_tb` | `ALUOp`/`funct` cada 10 ns | 17 | 170 ns | ✅ |
-| `RegisterFile_tb` | Reloj; entradas en flanco ↓; acceso jerárquico | 20 | 107 ns | ✅ |
+| `RegisterFile_tb` | Reloj; entradas tras cada flanco ↑; acceso jerárquico | 19 | 107 ns | ✅ |
 | `ALU_tb` | Control y operandos cada 10 ns | 22 | 220 ns | ✅ |
 | `MIPS_tb` | Reloj; el procesador ejecuta el programa de clase solo; acceso jerárquico | 26 ciclos + 32 registros | 270 ns | ✅ |
 

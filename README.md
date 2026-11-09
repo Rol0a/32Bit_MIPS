@@ -59,11 +59,11 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 
 | Carpeta | Contenido | Estado |
 | :--- | :--- | :--- |
-| [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (un solo `$display`) |
+| [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (nuevo formato) |
 | [`02_IMEM/`](02_IMEM/) | Entrega 1 · Ejercicio 2 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
 | [`03_PC_IMEM/`](03_PC_IMEM/) | Entrega 1 · Ejercicio 3 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
-| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (un solo `$display`) |
-| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · repetir `consola.png` (un solo `$display`) |
+| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (nuevo formato) |
+| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · repetir `consola.png` (nuevo formato) |
 | [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 · `funct` de clase | ✅ Verificado · repetir `consola.png` (`funct` nuevos) |
 | [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | ✅ Verificado · falta `consola.png` |
 | [`08_MIPS/`](08_MIPS/) | Entrega Final 1 · Procesador completo | ✅ Verificado · falta `consola.png` y foto del CMD |
@@ -223,12 +223,13 @@ La tabla de ALUControl fija esta codificación y la ALU la usa tal cual.
 - [x] **`04_ControlUnit`** — Decodificador de opcode con valores por defecto antes del `case`. 12/12 pruebas OK.
 - [x] **`05_ALU`** — Con signo, `/0 → 0`, control no definido → `0`, bandera `zero`. 22/22 pruebas OK.
 - [x] **`06_ALUControl`** — `always @(*)` con valor por defecto y `case` sobre `ALUOp` y `funct` (los de clase). 17/17 pruebas OK.
-- [x] **`07_RegisterFile`** — 32 × 32 bits, lectura asíncrona, escritura síncrona, `$0` siempre en `0`. 20/20 pruebas OK.
+- [x] **`07_RegisterFile`** — 32 × 32 bits, lectura asíncrona, escritura síncrona, `$0` siempre en `0`. 19/19 pruebas OK.
 
 ### Pendiente para entregar
 
 - [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir las de `01_PC` a `06_ALUControl`
-  (los testbenches ahora imprimen con un solo `$display`) y tomar las de `07_RegisterFile` y `08_MIPS`.
+  (los testbenches cambiaron de formato: cada caso asigna las entradas y luego imprime con su `$display`) y
+  tomar las de `07_RegisterFile` y `08_MIPS`.
 - [ ] Llenar las plantillas `.docx` con el código, las capturas y las tablas de casos de cada README.
   En la entrega 3, explicar las filas 7, 10 y 11 de la tabla de ALUControl (ver
   [Diferencias con las plantillas](#diferencias-con-las-plantillas)).
@@ -245,7 +246,7 @@ Todo lo que pide la plantilla está en [`08_MIPS/README.md`](08_MIPS/README.md#e
 - [x] `gtkwave.png` con reloj, PC, instrucción, control, operandos, ALU, registro escrito y `$1`–`$20`.
 - [x] Valores esperados a mano (secciones 8 y 10) y decisiones de diseño (sección 9) redactadas en el README.
 - [ ] `consola.png` de `08_MIPS` (varias capturas consecutivas si no cabe).
-- [ ] Foto del CMD con las 32 filas `registro final`.
+- [ ] Foto del CMD con las 32 líneas de registros finales (`$n = valor`).
 - [ ] Llenar `Entrega_Final_Procesador_MIPS.docx`: integrantes, módulos, diagrama, código, capturas y tablas.
 
 ### Entrega Final 2 · Presentación en la NanoBoard-3000XN

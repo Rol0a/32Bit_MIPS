@@ -39,13 +39,13 @@ module MIPS_NanoBoard_tb;
 
     always #25 clk = ~clk;   // 20 MHz, como el reloj fijo de la NanoBoard-3000
 
-    // Instrucciones terminadas y ciclos de la fase 5
-    integer advances = 0, run_cycles = 0, div_cycles = 0;
+    // Instrucciones terminadas desde la última pulsación de Step, y ciclos de la fase 5
+    integer instrucciones = 0, run_cycles = 0, div_cycles = 0;
     reg     measuring = 1'b0;
 
     always @(posedge clk) begin
         if (uut.advance && !uut.reset)
-            advances = advances + 1;
+            instrucciones = instrucciones + 1;
         if (measuring && !uut.reset && current_pc < 32'd1024) begin
             run_cycles = run_cycles + 1;
             if (current_pc == 32'd8)
@@ -54,10 +54,13 @@ module MIPS_NanoBoard_tb;
     end
 
     // ---- Casos de prueba ----
-    reg [31:0] program_words [0:25];   // programa de clase, igual que en 02_IMEM
-    reg [31:0] final_regs    [0:31];   // estado final esperado
-    reg [31:0] value;
-    integer    n, fase;
+    reg  [31:0] program_words [0:25];   // programa de clase, igual que en 02_IMEM
+    reg  [31:0] final_regs    [0:31];   // estado final esperado
+    integer     n, distintos;
+
+    // Fase 3: cada pulsación debe ejecutar exactamente una instrucción y dejar el valor esperado en el registro
+    reg  [31:0] pc_esp, esperado;
+    wire        ok_paso = (instrucciones === 1) && (current_pc === pc_esp) && (reg_data === esperado);
 
     initial begin
         $dumpfile("MIPS_NanoBoard_tb.vcd");
@@ -98,59 +101,85 @@ module MIPS_NanoBoard_tb;
         final_regs[13] = -25;  final_regs[14] = 100;  final_regs[15] = 125;  final_regs[16] = 2000;
         final_regs[17] = 26;
 
-        fase = 1;   // Carga del programa por el instrumento 1 (Reset = 1, Run = 0)
+        // ---- Fase 1: carga del programa por el instrumento 1 (Reset = 1, Run = 0) y lectura de vuelta ----
         repeat (3) @(negedge clk);
         for (n = 0; n < 26; n = n + 1)
             write_word(n, program_words[n]);
+
         for (n = 0; n < 26; n = n + 1) begin
             imem_addr = n;
-            #1 check(imem_rdata, program_words[n], "lectura de vuelta");
+            #1 $display("fase 1  imem_addr=%-4d -> %h  %0s", imem_addr, imem_rdata, imem_rdata === program_words[n] ? "OK" : "ERROR");
         end
-        imem_addr = 10'd30;   #1 check(imem_rdata, 32'd0, "direccion 30 (sin escribir)");
-        imem_addr = 10'd1023; #1 check(imem_rdata, 32'd0, "direccion 1023 (sin escribir)");
+        imem_addr = 30;    #1 $display("fase 1  imem_addr=%-4d -> %h  %0s  (sin escribir)", imem_addr, imem_rdata, imem_rdata === 0 ? "OK" : "ERROR");
+        imem_addr = 1023;  #1 $display("fase 1  imem_addr=%-4d -> %h  %0s  (sin escribir)", imem_addr, imem_rdata, imem_rdata === 0 ? "OK" : "ERROR");
 
-        fase = 2;   // Reset = 0 y Run = 0, sin pulsar Step durante 50 ciclos
+        // ---- Fase 2: Reset = 0 y Run = 0, sin pulsar Step durante 50 ciclos: no pasa nada ----
         reset_sw = 1'b0;
         repeat (50) @(negedge clk);
-        check(current_pc, 32'd0, "PC");
-        check_regs(0, "registros distintos de 0");
+        $display("fase 2  PC=%0d  %0s", current_pc, current_pc === 0 ? "OK" : "ERROR");
+        contar_distintos(0);
+        $display("fase 2  registros distintos de 0: %0d  %0s", distintos, distintos === 0 ? "OK" : "ERROR");
 
-        fase = 3;   // Paso a paso: 23 pulsaciones de Step, cada una con rebotes
-        //   PC    reg valor instrucción (reg 0 = sin escritura)
-        step(1,    1,  15,   "#1  MOVI $1, 15 (tabla de la plantilla)");
-        step(2,    2,  20,   "#2  MOVI $2, 20");
-        step(3,    3,  50,   "#3  MOVI $3, 50");
-        step(4,    4,  5,    "#4  MOVI $4, 5");
-        step(5,    5,  2,    "#5  MOVI $5, 2 (tabla de la plantilla)");
-        step(6,    6,  35,   "#6  ADD $6, $1, $2 (tabla de la plantilla)");
-        step(7,    7,  35,   "#7  SUB $7, $3, $1");
-        step(8,    8,  1000, "#8  MUL $8, $2, $3");
-        step(9,    9,  2,    "#9  DIV $9, $3, $2 (tabla de la plantilla)");
-        step(10,   1,  25,   "#10 ADDI $1, $1, 10");
-        step(11,   2,  16,   "#11 SUBI $2, $2, 4");
-        step(12,   10, 40,   "#12 ADD $10, $6, $4");
-        step(13,   11, 70,   "#13 MUL $11, $6, $5");
-        step(14,   12, 20,   "#14 DIV $12, $10, $5");
-        step(15,   4,  25,   "#15 ADDI $4, $4, 20");
-        step(16,   13, -25,  "#16 SUB $13, $4, $3");
-        step(17,   14, 100,  "#17 MOVI $14, 100");
-        step(18,   15, 125,  "#18 ADD $15, $14, $1");
-        step(19,   3,  45,   "#19 SUBI $3, $3, 5");
-        step(20,   16, 2000, "#20 MUL $16, $15, $2");
-        step(21,   17, 26,   "#21 ADDI $17, $1, 1 (tabla de la plantilla)");
-        step(1024, 0,  0,    "#22 JUMP 1024");
-        step(1024, 0,  0,    "PC fuera de la IMEM: no hace nada");
+        // ---- Fase 3: paso a paso, 23 pulsaciones de Step, cada una con rebotes ----
+        // Cada pulsación pone el PC esperado y el registro destino con su valor (registro 0 = sin escritura).
+        press_step;  pc_esp = 1;     reg_addr = 1;   esperado = 15;     // #1  MOVI $1, 15 (tabla de la plantilla)
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 2;     reg_addr = 2;   esperado = 20;     // #2  MOVI $2, 20
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 3;     reg_addr = 3;   esperado = 50;     // #3  MOVI $3, 50
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 4;     reg_addr = 4;   esperado = 5;      // #4  MOVI $4, 5
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 5;     reg_addr = 5;   esperado = 2;      // #5  MOVI $5, 2 (tabla de la plantilla)
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 6;     reg_addr = 6;   esperado = 35;     // #6  ADD $6, $1, $2 (tabla de la plantilla)
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 7;     reg_addr = 7;   esperado = 35;     // #7  SUB $7, $3, $1
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 8;     reg_addr = 8;   esperado = 1000;   // #8  MUL $8, $2, $3
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 9;     reg_addr = 9;   esperado = 2;      // #9  DIV $9, $3, $2 (tabla de la plantilla)
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 10;    reg_addr = 1;   esperado = 25;     // #10 ADDI $1, $1, 10
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 11;    reg_addr = 2;   esperado = 16;     // #11 SUBI $2, $2, 4
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 12;    reg_addr = 10;  esperado = 40;     // #12 ADD $10, $6, $4
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 13;    reg_addr = 11;  esperado = 70;     // #13 MUL $11, $6, $5
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 14;    reg_addr = 12;  esperado = 20;     // #14 DIV $12, $10, $5
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 15;    reg_addr = 4;   esperado = 25;     // #15 ADDI $4, $4, 20
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 16;    reg_addr = 13;  esperado = -25;    // #16 SUB $13, $4, $3
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 17;    reg_addr = 14;  esperado = 100;    // #17 MOVI $14, 100
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 18;    reg_addr = 15;  esperado = 125;    // #18 ADD $15, $14, $1
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 19;    reg_addr = 3;   esperado = 45;     // #19 SUBI $3, $3, 5
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 20;    reg_addr = 16;  esperado = 2000;   // #20 MUL $16, $15, $2
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 21;    reg_addr = 17;  esperado = 26;     // #21 ADDI $17, $1, 1 (tabla de la plantilla)
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 1024;  reg_addr = 0;   esperado = 0;      // #22 JUMP 1024
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
+        press_step;  pc_esp = 1024;  reg_addr = 0;   esperado = 0;      // PC fuera de la IMEM: no hace nada
+        #1 $display("fase 3  PC=%-4d  $%-2d = %-5d  %0s", current_pc, reg_addr, $signed(reg_data), ok_paso ? "OK" : "ERROR");
 
-        fase = 4;   // Los 32 registros por el instrumento 2
+        // ---- Fase 4: los 32 registros por el instrumento 2 ----
         for (n = 0; n < 32; n = n + 1) begin
-            read_reg(n, value);
-            check(value, final_regs[n], "registro final");
+            reg_addr = n;
+            #1 $display("fase 4  $%-2d = %-5d  %0s", reg_addr, $signed(reg_data), reg_data === final_regs[n] ? "OK" : "ERROR");
         end
 
-        fase = 5;   // Reset y Run = 1: programa completo a reloj completo
+        // ---- Fase 5: Reset y Run = 1, programa completo a reloj completo ----
         reset_sw = 1'b1;
         repeat (4) @(negedge clk);
-        check_regs(0, "registros distintos de 0 tras el reset");
+        contar_distintos(0);
+        $display("fase 5  tras el reset, registros distintos de 0: %0d  %0s", distintos, distintos === 0 ? "OK" : "ERROR");
 
         measuring = 1'b1;
         run_sw    = 1'b1;
@@ -158,13 +187,14 @@ module MIPS_NanoBoard_tb;
         repeat (200) @(negedge clk);
         measuring = 1'b0;
 
-        check(current_pc, 32'd1024, "PC al final (se queda en 1024)");
-        check(div_cycles, DIV_WAIT + 1, "ciclos de la DIV #9 (DIV_WAIT + 1)");
-        check(run_cycles, 20 + 2 * (DIV_WAIT + 1), "ciclos del programa (20 + 2 DIV)");
-        check_regs(1, "registros distintos de lo esperado");
+        $display("fase 5  PC al final=%0d (se queda en 1024)  %0s", current_pc, current_pc === 1024 ? "OK" : "ERROR");
+        $display("fase 5  ciclos de la DIV #9=%0d (DIV_WAIT + 1)  %0s", div_cycles, div_cycles === DIV_WAIT + 1 ? "OK" : "ERROR");
+        $display("fase 5  ciclos del programa=%0d (20 + 2 DIV)  %0s", run_cycles, run_cycles === 20 + 2 * (DIV_WAIT + 1) ? "OK" : "ERROR");
+        contar_distintos(1);
+        $display("fase 5  registros distintos de lo esperado: %0d  %0s", distintos, distintos === 0 ? "OK" : "ERROR");
         run_sw = 1'b0;
 
-        fase = 6;   // El programa de clase solo divide positivos: este prueba todos los signos y entre 0
+        // ---- Fase 6: el programa de clase solo divide positivos; este prueba todos los signos y entre 0 ----
         reset_sw = 1'b1;
         write_word(0, 32'b001010_00000_00001_1111111111111001);     // MOVI $1, -7
         write_word(1, 32'b001010_00000_00010_0000000000000010);     // MOVI $2, 2
@@ -181,11 +211,11 @@ module MIPS_NanoBoard_tb;
         repeat (150) @(negedge clk);
         run_sw   = 1'b0;
 
-        read_reg(3, value); check(value, -3, "$3 = -7 / 2 ");
-        read_reg(5, value); check(value,  3, "$5 = -7 / -2");
-        read_reg(6, value); check(value, -1, "$6 =  2 / -2");
-        read_reg(7, value); check(value,  0, "$7 = -7 / 0 ");
-        read_reg(9, value); check(value, -3, "$9 =  7 / -2");
+        reg_addr = 3;  #1 $display("fase 6  $3 = -7 / 2  = %0d  %0s", $signed(reg_data), reg_data === -3 ? "OK" : "ERROR");
+        reg_addr = 5;  #1 $display("fase 6  $5 = -7 / -2 = %0d  %0s", $signed(reg_data), reg_data === 3  ? "OK" : "ERROR");
+        reg_addr = 6;  #1 $display("fase 6  $6 =  2 / -2 = %0d  %0s", $signed(reg_data), reg_data === -1 ? "OK" : "ERROR");
+        reg_addr = 7;  #1 $display("fase 6  $7 = -7 / 0  = %0d  %0s", $signed(reg_data), reg_data === 0  ? "OK" : "ERROR");
+        reg_addr = 9;  #1 $display("fase 6  $9 =  7 / -2 = %0d  %0s", $signed(reg_data), reg_data === -3 ? "OK" : "ERROR");
 
         $finish;
     end
@@ -204,18 +234,24 @@ module MIPS_NanoBoard_tb;
         end
     endtask
 
-    // Instrumento 2: lee un registro.
-    task read_reg(input [4:0] n_reg, output [31:0] v);
+    // Instrumento 2: cuenta los registros distintos de 0 o, con usar_final = 1, de final_regs.
+    task contar_distintos(input usar_final);
         begin
-            reg_addr = n_reg;
-            #1 v = reg_data;
+            distintos = 0;
+            for (n = 0; n < 32; n = n + 1) begin
+                reg_addr = n;
+                #1 if (reg_data !== (usar_final ? final_regs[n] : 32'd0))
+                    distintos = distintos + 1;
+            end
         end
     endtask
 
     // Pulsación con rebotes: 3 saltos al pulsar y 3 al soltar, con 20 ciclos estables en medio.
+    // Pone en 0 la cuenta de instrucciones, para ver cuántas ejecuta la pulsación.
     task press_step;
         integer b;
         begin
+            instrucciones = 0;
             for (b = 0; b < 3; b = b + 1) begin
                 @(negedge clk) step_btn = 1'b1;
                 @(negedge clk) step_btn = 1'b0;
@@ -229,42 +265,6 @@ module MIPS_NanoBoard_tb;
             step_btn = 1'b0;
             repeat (20) @(negedge clk);
         end
-    endtask
-
-    // ---- Impresión de resultados ----
-
-    // Cuenta los registros distintos de 0 o, con use_final = 1, de final_regs.
-    task check_regs(input use_final, input [8*44:1] what);
-        integer r, wrong;
-        begin
-            wrong = 0;
-            for (r = 0; r < 32; r = r + 1) begin
-                read_reg(r, value);
-                if (value !== (use_final ? final_regs[r] : 32'd0))
-                    wrong = wrong + 1;
-            end
-            check(wrong, 32'd0, what);
-        end
-    endtask
-
-    // Una pulsación debe ejecutar exactamente una instrucción y dejar want en el registro dest.
-    task step(input [31:0] want_pc, input [4:0] dest, input [31:0] want, input [8*44:1] what);
-        integer before;
-        begin
-            before = advances;
-            press_step;
-            read_reg(dest, value);
-            imprimir(advances - before === 1 && current_pc === want_pc && value === want, value, want, what);
-        end
-    endtask
-
-    task check(input [31:0] got, want, input [8*44:1] what);
-        imprimir(got === want, got, want, what);
-    endtask
-
-    task imprimir(input ok, input [31:0] got, want, input [8*44:1] what);
-        $display("fase %0d  PC=%-4d  imem_addr=%-4d  reg_addr=%-2d  valor=%-9d  esperado=%-9d  %s  %0s",
-                 fase, current_pc, imem_addr, reg_addr, $signed(got), $signed(want), ok ? "OK   " : "ERROR", what);
     endtask
 
 endmodule

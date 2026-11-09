@@ -1,7 +1,7 @@
 # 05 — Unidad Aritmético-Lógica (ALU)
 
 **Entrega 2 · Ejercicio 2** · Estado: ✅ implementado y verificado (22/22 pruebas OK) ·
-`gtkwave.png` lista, `consola.png` por repetir (un solo `$display`)
+`gtkwave.png` lista, `consola.png` por repetir (nuevo formato del testbench)
 
 ## Objetivo
 Realizar suma, resta, multiplicación y división sobre dos operandos de 32 bits e indicar con `zero` si el
@@ -139,14 +139,16 @@ registros empezando en `0`. En las tipo I, `src2` es el inmediato.
 ejecutan.
 
 ## Testbench (`ALU_tb.v`)
-- Tarea `probar(ctl, a, b, esperado, esperado_zero, caso)`: pone el control y los operandos, espera 10 ns y
-  compara `result` y `zero` con lo esperado. Los valores se escriben en decimal con signo (`-3` queda como
-  `0xFFFFFFFD`) o en hexadecimal (`32'h80000000`).
-- Compara con `===`, así que una `x` en `result` o en `zero` cuenta como error.
+- Cada prueba son dos líneas: una pone `alu_control`, `src1`, `src2` y el resultado `esperado` (calculado a
+  mano), y la otra espera 10 ns e imprime: `#10 $display(...)`. El nombre del caso va como comentario.
+- `src1`, `src2`, `result` y `esperado` se declaran `signed` en el testbench: así se escriben en decimal con
+  signo (`-3` queda como `0xFFFFFFFD`) o en hexadecimal (`32'h80000000`), y `%0d` los imprime con signo.
+- Cada línea muestra la operación como se escribe a mano, `50 + 15 = 65`, con el símbolo de la operación
+  (`+`, `-`, `*`, `/`); las de paso (`MOVI`, `MOV`) y los controles no definidos muestran los dos operandos y
+  el resultado. Después van `zero` y `OK`/`ERROR`.
+- `wire ok = (result === esperado) && (zero === (esperado == 0))`: `zero` debe valer 1 solo si el resultado
+  esperado es 0. Con `===`, una `x` en `result` o en `zero` cuenta como error.
 - No usa reloj: el módulo es combinacional, basta con que las salidas se asienten. Cada prueba dura 10 ns.
-- Imprime una línea por prueba con el formato sugerido por la plantilla (control, operandos, resultado en
-  decimal con signo y en hexadecimal, `zero`), más el esperado, `OK`/`ERROR` y el nombre del caso. `%6d`
-  alinea las columnas; un valor más ancho, como `-2147483648`, ocupa lo que necesita.
   No hay línea de resumen: un fallo se ve como `ERROR` en su fila. Las filas no llevan número: la prueba N es la fila N de la consola.
 - Tres grupos: los 12 casos de la plantilla (pruebas 1–12), las operaciones de paso y casos de signo y desborde
   (13–19) y el control no definido (20–22).
@@ -167,7 +169,7 @@ ejecutan.
 | 1 | Suma: dos positivos pequeños | `0010` | `50` | `15` | `65` | 0 | `65` | 0 | ✅ |
 | 2 | Resta positiva: operando 1 > operando 2 | `0110` | `50` | `15` | `35` | 0 | `35` | 0 | ✅ |
 | 3 | Resta con resultado 0: la bandera sube | `0110` | `25` | `25` | `0` | 1 | `0` | 1 | ✅ |
-| 4 | Resta negativa: complemento a 2 | `0110` | `5` | `10` | `-5` (`0xFFFFFFFB`) | 0 | `-5` (`0xfffffffb`) | 0 | ✅ |
+| 4 | Resta negativa: complemento a 2 | `0110` | `5` | `10` | `-5` (`0xFFFFFFFB`) | 0 | `-5` | 0 | ✅ |
 | 5 | Multiplicación: dos positivos pequeños | `1000` | `6` | `7` | `42` | 0 | `42` | 0 | ✅ |
 | 6 | Multiplicación con overflow: 2³² se trunca | `1000` | `65536` | `65536` | `0` | 1 | `0` | 1 | ✅ |
 | 7 | División exacta | `1001` | `20` | `4` | `5` | 0 | `5` | 0 | ✅ |
@@ -192,29 +194,29 @@ Las pruebas 1–12 son los casos mínimos de la plantilla, en el mismo orden; la
 
 ### Salida de la consola
 ```
-ctl=0010 src1=    50 src2=    15 -> result=    65 (0x00000041) zero=0 | esperado=    65 zero=0  OK     Caso 1: suma de positivos
-ctl=0110 src1=    50 src2=    15 -> result=    35 (0x00000023) zero=0 | esperado=    35 zero=0  OK     Caso 2: resta positiva
-ctl=0110 src1=    25 src2=    25 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Caso 3: resta con resultado 0
-ctl=0110 src1=     5 src2=    10 -> result=    -5 (0xfffffffb) zero=0 | esperado=    -5 zero=0  OK     Caso 4: resta negativa
-ctl=1000 src1=     6 src2=     7 -> result=    42 (0x0000002a) zero=0 | esperado=    42 zero=0  OK     Caso 5: multiplicacion de positivos
-ctl=1000 src1= 65536 src2= 65536 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Caso 6: multiplicacion con overflow
-ctl=1001 src1=    20 src2=     4 -> result=     5 (0x00000005) zero=0 | esperado=     5 zero=0  OK     Caso 7: division exacta
-ctl=1001 src1=     7 src2=     2 -> result=     3 (0x00000003) zero=0 | esperado=     3 zero=0  OK     Caso 8: division con residuo
-ctl=1001 src1=     7 src2=     0 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Caso 9: division entre cero
-ctl=0010 src1=    -1 src2=     1 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Caso 10: suma con overflow
-ctl=0010 src1=     0 src2=     0 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Caso 11: operandos en cero
-ctl=1001 src1=   -20 src2=     4 -> result=    -5 (0xfffffffb) zero=0 | esperado=    -5 zero=0  OK     Caso 12: division con negativo
-ctl=0000 src1=   123 src2=    -3 -> result=    -3 (0xfffffffd) zero=0 | esperado=    -3 zero=0  OK     Adicional: MOVI pasa src2
-ctl=0001 src1=    -5 src2=    99 -> result=    -5 (0xfffffffb) zero=0 | esperado=    -5 zero=0  OK     Adicional: MOV pasa src1
-ctl=1000 src1=     7 src2=    -3 -> result=   -21 (0xffffffeb) zero=0 | esperado=   -21 zero=0  OK     Adicional: multiplicacion con negativo
-ctl=1001 src1=    -7 src2=     2 -> result=    -3 (0xfffffffd) zero=0 | esperado=    -3 zero=0  OK     Adicional: -7 / 2 trunca hacia cero
-ctl=1001 src1=   -20 src2=    -4 -> result=     5 (0x00000005) zero=0 | esperado=     5 zero=0  OK     Adicional: division de dos negativos
-ctl=0010 src1=2147483647 src2=     1 -> result=-2147483648 (0x80000000) zero=0 | esperado=-2147483648 zero=0  OK     Adicional: suma con overflow con signo
-ctl=1001 src1=-2147483648 src2=    -1 -> result=-2147483648 (0x80000000) zero=0 | esperado=-2147483648 zero=0  OK     Adicional: -2147483648 / -1
-ctl=1111 src1=    50 src2=    15 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Adicional: control 1111 (de ALUControl)
-ctl=0011 src1=    50 src2=    15 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Adicional: control sin operacion
-ctl=xxxx src1=    50 src2=    15 -> result=     0 (0x00000000) zero=1 | esperado=     0 zero=1  OK     Adicional: control x
-ALU_tb.v:44: $finish called at 220000 (1ps)
+0010:  50 + 15 = 65  zero=0  OK
+0110:  50 - 15 = 35  zero=0  OK
+0110:  25 - 25 = 0  zero=1  OK
+0110:  5 - 10 = -5  zero=0  OK
+1000:  6 * 7 = 42  zero=0  OK
+1000:  65536 * 65536 = 0  zero=1  OK
+1001:  20 / 4 = 5  zero=0  OK
+1001:  7 / 2 = 3  zero=0  OK
+1001:  7 / 0 = 0  zero=1  OK
+0010:  -1 + 1 = 0  zero=1  OK
+0010:  0 + 0 = 0  zero=1  OK
+1001:  -20 / 4 = -5  zero=0  OK
+0000:  MOVI 123, -3 -> -3  zero=0  OK
+0001:  MOV -5, 99 -> -5  zero=0  OK
+1000:  7 * -3 = -21  zero=0  OK
+1001:  -7 / 2 = -3  zero=0  OK
+1001:  -20 / -4 = 5  zero=0  OK
+0010:  2147483647 + 1 = -2147483648  zero=0  OK
+1001:  -2147483648 / -1 = -2147483648  zero=0  OK
+1111:  50, 15 -> 0  zero=1  OK
+0011:  50, 15 -> 0  zero=1  OK
+xxxx:  50, 15 -> 0  zero=1  OK
+ALU_tb.v:90: $finish called at 220000 (1ps)
 ```
 
 ## Capturas

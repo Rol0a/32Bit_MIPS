@@ -1,7 +1,7 @@
 # 01 — Program Counter (PC)
 
 **Entrega 1 · Ejercicio 1** · Estado: ✅ implementado y verificado (10/10 ciclos OK) ·
-`gtkwave.png` lista, `consola.png` por repetir (un solo `$display`)
+`gtkwave.png` lista, `consola.png` por repetir (nuevo formato del testbench)
 
 ## Objetivo
 Registro de 32 bits que guarda la dirección de la instrucción actual y la actualiza en cada ciclo de reloj.
@@ -22,10 +22,11 @@ Registro de 32 bits que guarda la dirección de la instrucción actual y la actu
 ## Testbench (`PC_tb.v`)
 - Reloj de 10 ns (`always #5 clk = ~clk`): flancos de subida en t = 5, 15, 25, … ns.
 - Inicia con `clk = 0`, `reset = 1`, `next_pc = 100`; suelta `reset` en el ciclo 3.
-- Las entradas cambian en el flanco de bajada (lejos del flanco activo) y se imprime 1 ns después de
-  cada flanco de subida, cuando el `<=` del PC ya se asentó.
-- La tarea `verificar` tiene el único `$display` del archivo: compara `current_pc` con el esperado (con `===`,
-  así una `x` cuenta como error) e imprime `OK`/`ERROR`. No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
+- Cada caso son dos líneas: una pone `reset`, `next_pc` y el PC `esperado` (calculado a mano), y la otra
+  espera el flanco e imprime: `@(posedge clk) #1 $display(...)`. El `#1` deja que el `<=` del PC se asiente.
+  Los cambios entre flancos del caso 4 se imprimen con `#2`, sin flanco de por medio.
+- `wire ok = (current_pc === esperado)` decide `OK`/`ERROR` en cada línea (con `===`, así una `x` cuenta
+  como error). No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
 - `$dumpfile("PC_tb.vcd")` y `$dumpvars(0, PC_tb)`.
 
 ## Casos de prueba (resultados de la simulación)
@@ -44,20 +45,20 @@ línea de la consola lo comprueba.
 
 ### Salida de la consola
 ```
-t=  1 ns  reset=1  next_pc=       100  ->  current_pc=         x  esperado=         x  OK     antes del primer flanco: aun sin reset
-t=  6 ns  reset=1  next_pc=       100  ->  current_pc=         0  esperado=         0  OK     Caso 1: reset activo
-t= 16 ns  reset=1  next_pc=       200  ->  current_pc=         0  esperado=         0  OK     Caso 1: reset activo
-t= 26 ns  reset=0  next_pc=         1  ->  current_pc=         1  esperado=         1  OK     Caso 2: soltar reset
-t= 36 ns  reset=0  next_pc=         2  ->  current_pc=         2  esperado=         2  OK     Caso 3: avance normal
-t= 46 ns  reset=0  next_pc=         3  ->  current_pc=         3  esperado=         3  OK     Caso 3: avance normal
-t= 56 ns  reset=0  next_pc=         4  ->  current_pc=         4  esperado=         4  OK     Caso 3: avance normal
-t= 62 ns  reset=0  next_pc=        50  ->  current_pc=         4  esperado=         4  OK     Caso 4: cambio entre flancos
-t= 64 ns  reset=0  next_pc=        60  ->  current_pc=         4  esperado=         4  OK     Caso 4: cambio entre flancos
-t= 66 ns  reset=0  next_pc=        60  ->  current_pc=        60  esperado=        60  OK     Caso 4: carga en el flanco
-t= 76 ns  reset=0  next_pc=4294967295  ->  current_pc=4294967295  esperado=4294967295  OK     Caso 6: 32 bits completos
-t= 86 ns  reset=1  next_pc=         7  ->  current_pc=         0  esperado=         0  OK     Caso 5: reset a mitad de ejecucion
-t= 96 ns  reset=0  next_pc=         1  ->  current_pc=         1  esperado=         1  OK     Caso 5: avanza tras el reset
-PC_tb.v:42: $finish called at 100000 (1ps)
+t=  1 ns  reset=1  next_pc=       100  ->  current_pc=         x  OK
+t=  6 ns  reset=1  next_pc=       100  ->  current_pc=         0  OK
+t= 16 ns  reset=1  next_pc=       200  ->  current_pc=         0  OK
+t= 26 ns  reset=0  next_pc=         1  ->  current_pc=         1  OK
+t= 36 ns  reset=0  next_pc=         2  ->  current_pc=         2  OK
+t= 46 ns  reset=0  next_pc=         3  ->  current_pc=         3  OK
+t= 56 ns  reset=0  next_pc=         4  ->  current_pc=         4  OK
+t= 58 ns  reset=0  next_pc=        50  ->  current_pc=         4  OK
+t= 60 ns  reset=0  next_pc=        60  ->  current_pc=         4  OK
+t= 66 ns  reset=0  next_pc=        60  ->  current_pc=        60  OK
+t= 76 ns  reset=0  next_pc=4294967295  ->  current_pc=4294967295  OK
+t= 86 ns  reset=1  next_pc=         7  ->  current_pc=         0  OK
+t= 96 ns  reset=0  next_pc=         1  ->  current_pc=         1  OK
+PC_tb.v:66: $finish called at 96000 (1ps)
 ```
 
 ## Capturas

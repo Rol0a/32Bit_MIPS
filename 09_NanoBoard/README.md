@@ -143,8 +143,11 @@ Después de cualquier cambio: agregar la prueba al testbench y simular (ver [Com
 ## Verificación
 
 **Testbench (`MIPS_NanoBoard_tb.v`)**, con reloj de 20 MHz y el filtro reducido a 8 ciclos (`DEBOUNCE_BITS = 3`).
-Un solo `$display` da una línea por comprobación: la fase, el PC, las direcciones de los dos instrumentos, el
-valor, el esperado, `OK`/`ERROR` y qué se comprueba. No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
+Cada comprobación sigue el formato «asignar y luego imprimir»: pone la dirección de un instrumento y la lee
+1 ns después (`reg_addr = 3;  #1 $display(...)`), con el valor esperado escrito en la misma línea. En la fase 3
+cada pulsación es `press_step;` más el PC, el registro y el valor esperados, y la línea siguiente imprime; la
+cuenta `instrucciones` vuelve a 0 en cada pulsación y debe llegar exactamente a 1. Cada línea empieza con la
+fase y termina en `OK`/`ERROR`. No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
 
 | Fase | Qué comprueba | Resultado |
 |---|---|---|

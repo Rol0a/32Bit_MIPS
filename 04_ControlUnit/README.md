@@ -1,7 +1,7 @@
 # 04 — Unidad de Control (ControlUnit)
 
 **Entrega 2 · Ejercicio 1** · Estado: ✅ implementado y verificado (12/12 pruebas OK) ·
-`gtkwave.png` lista, `consola.png` por repetir (un solo `$display`)
+`gtkwave.png` lista, `consola.png` por repetir (nuevo formato del testbench)
 
 ## Objetivo
 Decodificar el `opcode` de la instrucción y generar las señales que controlan el resto del procesador. Es
@@ -124,15 +124,16 @@ en `02_IMEM` (instrucción `#n` en la dirección `n − 1`):
 | ≥ 1024 | — | palabra `0` (NOP) | `000000` | `1 0 1 0 10` | `RegWrite = 1` hacia `rd = $0`: el banco no escribe `$0` |
 
 ## Testbench (`ControlUnit_tb.v`)
-- Tarea `probar(opcode, esperado, caso)`: pone el opcode, espera 10 ns y compara las cinco salidas a la vez.
-  El esperado es un vector de 6 bits con las señales en el orden de la plantilla, `{RegDst, ALUSrc, RegWrite,
-  Jump, ALUOp}`, y se escribe a mano separado por `_`: `6'b1_0_1_0_10` para tipo R.
-- Compara con `===`, así que una `x` en cualquier salida cuenta como error.
+- Cada prueba son dos líneas: una pone el `opcode` y el `esperado`, y la otra espera 10 ns e imprime:
+  `#10 $display(...)`. El esperado es un vector de 6 bits con las señales en el orden de la plantilla,
+  `{RegDst, ALUSrc, RegWrite, Jump, ALUOp}`, escrito a mano separado por `_`: `6'b1_0_1_0_10` para tipo R.
+  El nombre del caso va como comentario al final de la línea.
+- `wire ok = ({RegDst, ALUSrc, RegWrite, Jump, ALUOp} === esperado)` compara las cinco salidas a la vez; con
+  `===`, una `x` en cualquier salida cuenta como error.
 - No usa reloj: el módulo es combinacional, basta con que las salidas se asienten. Cada prueba dura 10 ns, que
   es el «ciclo» en el que cambia el opcode.
-- Imprime una línea por opcode con el formato sugerido por la plantilla, más el esperado, `OK`/`ERROR` y el
-  nombre del caso. No hay línea de resumen: un fallo se ve como `ERROR` en su fila.
-  Las filas no llevan número: la prueba N es la fila N de la consola.
+- Imprime una línea por opcode con el formato sugerido por la plantilla y `OK`/`ERROR`. No hay línea de
+  resumen: un fallo se ve como `ERROR` en su fila. Las filas no llevan número: la prueba N es la fila N de la consola.
 - La secuencia del caso 6 (R → J → SUBI) hace que cada una de las cinco señales cambie al menos una vez, así
   que un valor arrastrado de la instrucción anterior daría `ERROR`.
 - `$dumpfile("ControlUnit_tb.vcd")` y `$dumpvars(0, ControlUnit_tb)`.
@@ -163,19 +164,19 @@ antes del caso 6 (pruebas 10–12). **Total: 12 pruebas, 0 errores.**
 
 ### Salida de la consola
 ```
-opcode=000000 -> RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | esperado=1 0 1 0 10  OK     Caso 1: tipo R
-opcode=001010 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00 | esperado=0 1 1 0 00  OK     Caso 2: tipo I, MOVI
-opcode=001000 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01 | esperado=0 1 1 0 01  OK     Caso 3: tipo I, ADDI
-opcode=001001 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11 | esperado=0 1 1 0 11  OK     Caso 3: tipo I, SUBI
-opcode=000010 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=1 ALUOp=00 | esperado=0 0 0 1 00  OK     Caso 4: tipo J
-opcode=111111 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00 | esperado=0 0 0 0 00  OK     Caso 5: opcode no definido
-opcode=000011 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00 | esperado=0 0 0 0 00  OK     Adicional: a 1 bit de JUMP
-opcode=001011 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00 | esperado=0 0 0 0 00  OK     Adicional: a 1 bit de MOVI
-opcode=xxxxxx -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00 | esperado=0 0 0 0 00  OK     Adicional: opcode x (IMEM vacia)
-opcode=000000 -> RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10 | esperado=1 0 1 0 10  OK     Caso 6: secuencia, R
-opcode=000010 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=1 ALUOp=00 | esperado=0 0 0 1 00  OK     Caso 6: secuencia, J
-opcode=001001 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11 | esperado=0 1 1 0 11  OK     Caso 6: secuencia, I (SUBI)
-ControlUnit_tb.v:41: $finish called at 120000 (1ps)
+opcode=000000 -> RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10  OK
+opcode=001010 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=00  OK
+opcode=001000 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=01  OK
+opcode=001001 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11  OK
+opcode=000010 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=1 ALUOp=00  OK
+opcode=111111 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00  OK
+opcode=000011 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00  OK
+opcode=001011 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00  OK
+opcode=xxxxxx -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=0 ALUOp=00  OK
+opcode=000000 -> RegDst=1 ALUSrc=0 RegWrite=1 Jump=0 ALUOp=10  OK
+opcode=000010 -> RegDst=0 ALUSrc=0 RegWrite=0 Jump=1 ALUOp=00  OK
+opcode=001001 -> RegDst=0 ALUSrc=1 RegWrite=1 Jump=0 ALUOp=11  OK
+ControlUnit_tb.v:67: $finish called at 120000 (1ps)
 ```
 
 ## Capturas
