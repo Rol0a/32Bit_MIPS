@@ -1,7 +1,7 @@
 # 08 — Procesador MIPS completo (datapath monociclo)
 
 **Fase 4 · Integración → Entrega Final 1** · Estado: ✅ implementado y verificado con el programa de clase
-(26/26 ciclos y 32/32 registros OK) · faltan `consola.png` y la foto del CMD
+(26/26 ciclos y 32/32 registros OK) · `gtkwave.png` y `consola.png` listas
 
 ## Objetivo
 Conectar los seis módulos en un procesador que ejecute el programa de la IMEM de principio a fin: una
@@ -327,10 +327,9 @@ Las mutaciones 2, 3 y 5 son los riesgos de [Arquitectura §11.3](../docs/Arquite
 las dos decisiones nuevas de la Entrega Final (D5 y D1).
 
 ## Capturas
-- `consola.png` ⏳: desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`), la línea
-  de cada instrucción y las 32 líneas de registros finales. Las líneas miden hasta 136 caracteres: ensanchar la
-  ventana para que no se partan. Si no cabe, varias capturas consecutivas.
-- Foto del CMD ⏳: las 32 líneas `$n = valor` que imprime el testbench al terminar.
+- [`consola.png`](consola.png): comandos `iverilog` y `vvp` desde esta carpeta, la línea de cada instrucción
+  y las 32 líneas de registros finales, en una sola captura (fuente de 14 px para que quepa).
+- Foto del CMD: en la entrega va un recorte de `consola.png` con las 32 líneas `$n = valor` del final (la plantilla acepta «foto o captura»).
 - [`gtkwave.png`](gtkwave.png) ✅: `MIPS_tb.gtkw` abre cuatro grupos. **Búsqueda:** `clk`, `reset`,
   `current_pc` y `next_pc` en decimal, `instruction` en hex. **Control:** las cinco señales y `alu_control` en
   binario. **Ejecución:** `read_data1`, `read_data2`, `src2` y `alu_result` en decimal con signo, `zero` y

@@ -1269,8 +1269,8 @@ plantilla: `iverilog -o salida.vvp *.v` y `vvp salida.vvp`. Compila igual porque
 | Entrega | Módulos | Código | Testbench | Capturas | Plantilla `.docx` |
 | :--- | :--- | :---: | :---: | :--- | :---: |
 | 1 · PC e IMEM | PC, IMEM, PC + IMEM | ✅ | ✅ | `consola.png` y `gtkwave.png` en las tres carpetas | Por completar |
-| 2 · Control y ALU | ControlUnit, ALU | ✅ | ✅ | `consola.png` y `gtkwave.png` en las dos carpetas | Por completar |
-| 3 · ALUControl y banco | ALUControl, RegisterFile | ✅ | ✅ | `gtkwave.png` en las dos; `consola.png`: repetir la de ALUControl, falta la del banco | Por completar |
+| 2 · Control y ALU | ControlUnit, ALU | ✅ | ✅ | `consola.png` y `gtkwave.png` en las dos carpetas | ✅ Llena (falta el PDF) |
+| 3 · ALUControl y banco | ALUControl, RegisterFile | ✅ | ✅ | `consola.png` y `gtkwave.png` en las dos carpetas | ✅ Llena (falta el PDF) |
 | Final 1 · Procesador | MIPS (`08_MIPS`) con las 26 instrucciones de clase | ✅ | ✅ | `gtkwave.png`; faltan `consola.png` y la foto del CMD | Por completar |
 | Final 2 · NanoBoard | — | — | — | — | Pendiente |
 
@@ -1296,9 +1296,9 @@ revisión del 28/10/2026):
 | 7 ✅ | [`07_RegisterFile/README.md`](../07_RegisterFile/README.md) | Dice que la tabla de la Unidad de Control «todavía es una propuesta»; ya está aprobada e implementada | Bajo |
 | 8 ✅ | [`05_ALU/README.md`](../05_ALU/README.md) | Presenta signo, `/0` y control no definido como «propuesta»; ya están decididos (D4) y otros READMEs los dan por hechos | Bajo |
 | 9 ✅ | Estilo de `06` y `07` | `` `timescale 1ns/1ns ``, sin cabecera de archivo, comentarios sin tildes y otro formato de línea de resumen, frente al estilo de `01`–`04` | Cosmético: en el `.docx` se nota la diferencia |
-| 10 ✅ | `07_RegisterFile` | No tenía `.gtkw` ni capturas; ya tiene `.gtkw` y `gtkwave.png` | Falta `consola.png` |
-| 11 | `consola.png` de `02_IMEM`, `03_PC_IMEM` y `06_ALUControl` | Son del programa y los `funct` anteriores a la Entrega Final; las de `02` y `06` además solo muestran `vvp` | Hay que repetirlas |
-| 12 | `consola.png` de `04_ControlUnit` | Empieza con un intento fallido (`vvp ControlUnit.vvp: Unable to open input file`) | Cosmético: repetir o recortar |
+| 10 ✅ | `07_RegisterFile` | No tenía `.gtkw` ni capturas; ya tiene `.gtkw`, `gtkwave.png` y `consola.png` | — |
+| 11 | `consola.png` de `02_IMEM` y `03_PC_IMEM` | Son del programa anterior a la Entrega Final; la de `02` además solo muestra `vvp`. La de `06_ALUControl` ya se repitió (8/11/2026) | Hay que repetirlas |
+| 12 ✅ | `consola.png` de `04_ControlUnit` | Empezaba con un intento fallido (`vvp ControlUnit.vvp: Unable to open input file`); se repitió el 8/11/2026 | — |
 
 ### 11.3 Riesgo técnico para la integración
 

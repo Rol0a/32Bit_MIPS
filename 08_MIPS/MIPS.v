@@ -30,19 +30,19 @@ module MIPS (
     wire        zero;            // ninguna instrucción la usa
 
     // ---- Módulos ----
-    PC pc_reg (
+    PC pc_reg (                // Fetch: guarda la dirección de la instrucción actual
         .clk       (clk),
         .reset     (reset),
         .next_pc   (next_pc),
         .current_pc(current_pc)
     );
 
-    IMEM imem (
+    IMEM imem (                // Fetch: lee la instrucción que apunta el PC
         .addr       (current_pc),
         .instruction(instruction)
     );
 
-    ControlUnit cu (
+    ControlUnit cu (           // Decode: opcode -> señales de control
         .opcode  (opcode),
         .RegDst  (RegDst),
         .ALUSrc  (ALUSrc),
@@ -51,13 +51,13 @@ module MIPS (
         .ALUOp   (ALUOp)
     );
 
-    ALUControl aluc (
+    ALUControl aluc (          // Decode: ALUOp + funct -> operación de la ALU
         .ALUOp      (ALUOp),
         .funct      (funct),
         .alu_control(alu_control)
     );
 
-    RegisterFile rf (
+    RegisterFile rf (          // Decode: lee rs y rt · Write Back: escribe en el flanco de subida
         .clk       (clk),
         .reset     (reset),
         .RegWrite  (RegWrite),
@@ -69,7 +69,7 @@ module MIPS (
         .read_data2(read_data2)
     );
 
-    ALU alu (
+    ALU alu (                  // Execute: calcula el resultado
         .src1       (read_data1),
         .src2       (src2),
         .alu_control(alu_control),

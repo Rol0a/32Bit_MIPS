@@ -1,7 +1,7 @@
 # 02 — Memoria de Instrucciones (IMEM)
 
 **Entrega 1 · Ejercicio 2 → Entrega Final** · Estado: ✅ implementado y verificado (31/31 lecturas OK) ·
-`gtkwave.png` lista, `consola.png` por repetir (programa de clase)
+`gtkwave.png` y `consola.png` listas
 
 ## Objetivo
 Memoria de solo lectura de **1024 palabras** de 32 bits con el **programa de clase** (26 instrucciones)
@@ -207,8 +207,8 @@ IMEM_tb.v:76: $finish called at 310000 (1ps)
 ```
 
 ## Capturas
-- `consola.png` (por repetir con el programa de clase): desde esta carpeta, con **los dos comandos visibles**
-  (`iverilog` y `vvp`) y las 31 lecturas. Si no caben, varias capturas consecutivas.
+- [`consola.png`](consola.png): comandos `iverilog` y `vvp` desde esta carpeta, y las 31 lecturas en una sola
+  captura.
 - `gtkwave.png`: `IMEM_tb.gtkw` abre `addr` en decimal, `instruction` en hex, `opcode`, `rs`, `rt`, `rd`,
   `shamt` y `funct` en binario, `immediate` en decimal con signo y `address` en decimal. Luego View →
   *Zoom Fit* (310 ns).

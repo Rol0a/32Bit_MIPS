@@ -1,7 +1,7 @@
 # 04 — Unidad de Control (ControlUnit)
 
 **Entrega 2 · Ejercicio 1** · Estado: ✅ implementado y verificado (12/12 pruebas OK) ·
-`gtkwave.png` lista, `consola.png` por repetir (nuevo formato del testbench)
+`gtkwave.png` y `consola.png` listas
 
 ## Objetivo
 Decodificar el `opcode` de la instrucción y generar las señales que controlan el resto del procesador. Es
@@ -180,7 +180,7 @@ ControlUnit_tb.v:67: $finish called at 120000 (1ps)
 ```
 
 ## Capturas
-- [`consola.png`](consola.png) (por repetir): ejecución con `vvp` y las 12 líneas de prueba.
+- [`consola.png`](consola.png): comandos `iverilog` y `vvp` desde esta carpeta, y las 12 líneas de prueba.
 - [`gtkwave.png`](gtkwave.png): `ControlUnit_tb.gtkw` abre `opcode` en binario, las cuatro señales de 1 bit y
   `ALUOp` como bus de 2 bits; después, View → *Zoom Fit* (0–120 ns, las 12 pruebas a la vista). En la prueba 9
   (80–90 ns) `opcode` aparece en rojo (`x`) mientras las cinco señales siguen en `0`.

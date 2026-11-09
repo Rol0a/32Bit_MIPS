@@ -1,7 +1,7 @@
 # 01 — Program Counter (PC)
 
 **Entrega 1 · Ejercicio 1** · Estado: ✅ implementado y verificado (10/10 ciclos OK) ·
-`gtkwave.png` lista, `consola.png` por repetir (nuevo formato del testbench)
+`gtkwave.png` y `consola.png` listas
 
 ## Objetivo
 Registro de 32 bits que guarda la dirección de la instrucción actual y la actualiza en cada ciclo de reloj.
@@ -62,7 +62,7 @@ PC_tb.v:66: $finish called at 96000 (1ps)
 ```
 
 ## Capturas
-- `consola.png` (por repetir): comando de compilación/ejecución y una línea por ciclo.
+- [`consola.png`](consola.png): comandos `iverilog` y `vvp` desde esta carpeta, y una línea por ciclo.
 - `gtkwave.png`: `clk`, `reset`, `next_pc`, `current_pc` en **decimal**, *Zoom Fit*.
 
 ## Comandos

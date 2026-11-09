@@ -62,10 +62,10 @@ Construcción de los módulos **PC, IMEM, Unidad de Control, ALU, ALUControl y B
 | [`01_PC/`](01_PC/) | Entrega 1 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (nuevo formato) |
 | [`02_IMEM/`](02_IMEM/) | Entrega 1 · Ejercicio 2 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
 | [`03_PC_IMEM/`](03_PC_IMEM/) | Entrega 1 · Ejercicio 3 · programa de clase | ✅ Verificado · repetir `consola.png` (programa nuevo) |
-| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · repetir `consola.png` (nuevo formato) |
-| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · repetir `consola.png` (nuevo formato) |
-| [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 · `funct` de clase | ✅ Verificado · repetir `consola.png` (`funct` nuevos) |
-| [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | ✅ Verificado · falta `consola.png` |
+| [`04_ControlUnit/`](04_ControlUnit/) | Entrega 2 · Ejercicio 1 | ✅ Verificado · capturas listas |
+| [`05_ALU/`](05_ALU/) | Entrega 2 · Ejercicio 2 | ✅ Verificado · capturas listas |
+| [`06_ALUControl/`](06_ALUControl/) | Entrega 3 · Ejercicios 1–2 · `funct` de clase | ✅ Verificado · capturas listas |
+| [`07_RegisterFile/`](07_RegisterFile/) | Entrega 3 · Ejercicios 3–4 | ✅ Verificado · capturas listas |
 | [`08_MIPS/`](08_MIPS/) | Entrega Final 1 · Procesador completo | ✅ Verificado · falta `consola.png` y foto del CMD |
 | [`09_NanoBoard/`](09_NanoBoard/) | Entrega Final 2 · Procesador en la NanoBoard-3000XN (un solo `.v` para Altium) | ✅ Simulado · falta probarlo en la placa |
 
@@ -227,12 +227,14 @@ La tabla de ALUControl fija esta codificación y la ALU la usa tal cual.
 
 ### Pendiente para entregar
 
-- [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir las de `01_PC` a `06_ALUControl`
+- [ ] **Capturas de consola** (deben verse `iverilog` y `vvp`): repetir las de `01_PC` a `03_PC_IMEM`
   (los testbenches cambiaron de formato: cada caso asigna las entradas y luego imprime con su `$display`) y
-  tomar las de `07_RegisterFile` y `08_MIPS`.
-- [ ] Llenar las plantillas `.docx` con el código, las capturas y las tablas de casos de cada README.
-  En la entrega 3, explicar las filas 7, 10 y 11 de la tabla de ALUControl (ver
-  [Diferencias con las plantillas](#diferencias-con-las-plantillas)).
+  tomar la de `08_MIPS`. Las de `04_ControlUnit` a `07_RegisterFile` ya son las del formato actual.
+- [x] Plantillas `.docx` de las entregas 2 y 3 (`docs/Entrega_ControlUnit_ALU.docx` y
+  `docs/Entrega_ALUControl_RegisterFile.docx`) llenas con el código, las capturas y las tablas de casos de
+  `04`–`07`, incluida la explicación de las filas 7, 10 y 11 de ALUControl (ver
+  [Diferencias con las plantillas](#diferencias-con-las-plantillas)). Falta exportarlas a PDF.
+- [ ] Llenar la plantilla `docs/Entrega_PC_IMEM.docx` (entrega 1).
 
 ### Entrega Final 1 · Procesador completo
 

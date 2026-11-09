@@ -1,7 +1,7 @@
 # 07 — Banco de Registros (RegisterFile)
 
-**Entrega 3 · Ejercicios 3–4** · Estado: ✅ implementado y verificado (19/19 pruebas OK) · `gtkwave.png` lista,
-`consola.png` pendiente
+**Entrega 3 · Ejercicios 3–4** · Estado: ✅ implementado y verificado (19/19 pruebas OK) · `gtkwave.png` y
+`consola.png` listas
 
 ## Objetivo
 Guardar los 32 registros de propósito general del procesador (`$0`–`$31`, de 32 bits cada uno). En cada ciclo
@@ -225,8 +225,7 @@ RegisterFile_tb.v:141: $finish called at 107000 (1ps)
   `read_reg2` y `read_data2`, en decimal, con los 107 ns a la vista. Se ve que `write_data` cambia de 40 a 44
   entre flancos (caso 7), que las lecturas cambian a mitad de ciclo, sin flanco (57 y 58 ns), y que
   `read_data2` vale `x` antes del primer reset.
-- `consola.png` (pendiente): desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`) y la
-  salida completa.
+- [`consola.png`](consola.png): comandos `iverilog` y `vvp` desde esta carpeta, y la salida completa.
 
 ## Comandos
 ```powershell

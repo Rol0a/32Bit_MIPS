@@ -1,7 +1,7 @@
 # 06 — Control de la ALU (ALUControl)
 
 **Entrega 3 · Ejercicios 1–2 → Entrega Final** · Estado: ✅ implementado y verificado (17/17 pruebas OK) ·
-`gtkwave.png` lista, `consola.png` por repetir (`funct` de las instrucciones de clase)
+`gtkwave.png` y `consola.png` listas
 
 ## Objetivo
 Traducir `ALUOp` (de la Unidad de Control) y el campo `funct` (de las instrucciones R) en el código de 4 bits
@@ -220,8 +220,7 @@ ALUControl_tb.v:75: $finish called at 170000 (1ps)
 ## Capturas
 - `gtkwave.png` (lista): `ALUOp`, `funct`, `alu_control` y `esperado` en binario, con las 17 pruebas a la
   vista (170 ns) y *Zoom Fit*.
-- `consola.png` (por repetir): desde esta carpeta, con **los dos comandos visibles** (`iverilog` y `vvp`) y
-  las 17 líneas de prueba. La captura anterior es de la versión con los `funct` del enunciado.
+- [`consola.png`](consola.png): comandos `iverilog` y `vvp` desde esta carpeta, y las 17 líneas de prueba.
 
 ## Comandos
 ```powershell
